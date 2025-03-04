@@ -13,6 +13,7 @@
   "dependencies": {
     "@heroui/react": "^2.7.4",
     "@prisma/client": "^6.4.1",
+    "arctic": "^3.4.0",
     "framer-motion": "^12.4.7",
     "next": "15.1.7",
     "prisma": "^6.4.1",

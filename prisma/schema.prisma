@@ -11,4 +11,24 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+
+  // untuk memudahkan testing saat local dev bisa menggunakan sqlite
+  // provider = "sqlite" // cli: npx prisma migrate dev --name dev
+  // url      = "file:./dev.db" 
+}
+
+model User {
+  id    String    @id @default(cuid())
+  email String    @unique
+  name  String?
+  image String?
+  // role  String? Kalau jadi ada fitur admin, berarti salah satu email kita dibuat jadi role admin
+
+  session Session[]
+}
+
+model Session {
+  id String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 }
