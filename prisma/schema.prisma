@@ -11,6 +11,10 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+
+  // untuk memudahkan testing saat local dev bisa menggunakan sqlite
+  // provider = "sqlite" // cli: npx prisma migrate dev --name dev
+  // url      = "file:./dev.db" 
 }
 
 model User {
@@ -20,6 +24,7 @@ model User {
   createdAt DateTime  @default(now())
   receipts  Receipt[]
   people    Person[]
+  session   Session[]
 }
 
 model Receipt {
@@ -60,4 +65,10 @@ model SplitBill {
   receipt   Receipt   @relation(fields: [receiptId], references: [id])
   status    String
   createdAt DateTime  @default(now())
+}
+
+model Session {
+  id String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
 }
