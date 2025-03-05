@@ -12,3 +12,52 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model User {
+  id        String       @id @default(cuid())
+  email     String    @unique
+  name      String?
+  createdAt DateTime  @default(now())
+  receipts  Receipt[]
+  people    Person[]
+}
+
+model Receipt {
+  id          String       @id @default(cuid())
+  userId      String    
+  user        User      @relation(fields: [userId], references: [id])
+  image       String?
+  totalAmount Float
+  date        DateTime
+  restaurant  String
+  createdAt   DateTime  @default(now())
+  items       Item[]    @relation("ReceiptToItems")
+  splitBills  SplitBill[]
+}
+
+model Item {
+  id          String     @id @default(cuid())
+  receiptId   String
+  receipt     Receipt    @relation("ReceiptToItems", fields: [receiptId], references: [id])
+  name        String
+  price       Float
+  quantity    Int
+  assignedTo  Json? // Array dari personID yang di-store sebagai JSON
+}
+
+model Person {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  name      String
+  email     String?
+  createdAt DateTime  @default(now())
+}
+
+model SplitBill {
+  id        String    @id @default(cuid())
+  receiptId String
+  receipt   Receipt   @relation(fields: [receiptId], references: [id])
+  status    String
+  createdAt DateTime  @default(now())
+}
