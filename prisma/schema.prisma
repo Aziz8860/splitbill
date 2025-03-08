@@ -35,6 +35,8 @@ model Receipt {
   totalAmount Float
   date        DateTime
   restaurant  String
+  tax         Float       @default(0) 
+  subtotal    Float       @default(0) 
   createdAt   DateTime  @default(now())
   items       Item[]    @relation("ReceiptToItems")
   splitBills  SplitBill[]
