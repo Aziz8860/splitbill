@@ -19,6 +19,8 @@ export async function auth() {
           id: true,
           name: true,
           email: true,
+          receipts: true,
+          people: true,
           //role:true jika jadi menggunakan admin
         },
       },
