@@ -21,6 +21,7 @@ model User {
   id        String       @id @default(cuid())
   email     String    @unique
   name      String?
+  isAdmin   Boolean?
   createdAt DateTime  @default(now())
   receipts  Receipt[]
   people    Person[]
