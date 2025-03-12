@@ -4,7 +4,7 @@ export const AdminButton = () => {
   return (
     <Link
       href={'/admin'}
-      className="flex rounded-full h-8 items-center bg-indigo-400 px-2 text-white"
+      className="flex rounded-full h-8 items-center bg-primary px-2 text-white"
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"

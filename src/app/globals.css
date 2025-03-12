@@ -1,3 +1,41 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --background: #ffffff;
+  --foreground: #111827;
+}
+
+.dark {
+  --background: #111827;
+  --foreground: #ffffff;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  .hero-button-primary {
+    @apply bg-primary text-white hover:bg-primary-600 focus:ring-primary-500;
+  }
+
+  .hero-button-secondary {
+    @apply bg-secondary-100 text-secondary-700 hover:bg-secondary-200 focus:ring-secondary-500;
+  }
+
+  .hero-button-outline {
+    @apply border border-primary text-primary hover:bg-primary-50 focus:ring-primary-500;
+  }
+
+  .hero-button-danger {
+    @apply bg-danger text-white hover:bg-danger-600 focus:ring-danger-500;
+  }
+
+  .hero-button-success {
+    @apply bg-success text-white hover:bg-success-600 focus:ring-success-500;
+  }
+}

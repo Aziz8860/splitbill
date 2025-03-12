@@ -12,7 +12,7 @@ export const LogoutButton = () => {
         isLoading={pending}
         type="submit"
         color="danger"
-        className="flex rounded-full h-8 items-center"
+        className="flex rounded-full h-8 items-center hero-button-danger"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
