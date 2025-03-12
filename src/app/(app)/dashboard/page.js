@@ -14,7 +14,7 @@ export default async function Page() {
           <div className="text-2xl font-bold tracking-tight">Splitbill</div>
           <div className="flex gap-4">
             {/* return wether user is admin in or not */}
-            {session.user.isAdmin ? <AdminButton /> : null}
+            {session?.user.isAdmin ? <AdminButton /> : null}
 
             {/* return wether user is logged in or not */}
             {session ? <LogoutButton /> : null}
