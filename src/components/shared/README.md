@@ -71,11 +71,11 @@ import { Input, Label, FormGroup } from '@/components/shared/Input';
 // Usage
 <FormGroup>
   <Label htmlFor="name" required>Name</Label>
-  <Input id="name" placeholder="Enter your name" />
+  <Input id="name" placeholder="Masukkan namamu" />
 </FormGroup>
 
 // With error
-<FormGroup error="This field is required">
+<FormGroup error="Bagian ini harus diisi">
   <Label htmlFor="email">Email</Label>
   <Input id="email" type="email" error={true} />
 </FormGroup>
