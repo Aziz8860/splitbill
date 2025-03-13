@@ -4,21 +4,18 @@ import { prisma } from '@/utils/prisma';
 import { auth } from '@/libs/auth';
 import ReceiptEditor from '@/components/receipts/ReceiptEditor';
 
-export default async function ReviewReceiptPage({ searchParams }) {
+export default async function ReviewReceiptPage( {params} ) {
   const session = await auth();
   
-  if (!session?.user) {
-    redirect('/login');
-  }
+  // if (!session?.user) {
+  //   redirect('/login');
+  // }
+  // const searchParams = useSearchParams()
+  const {id} = params ;
   
-  const receiptId = searchParams.id;
-  
-  if (!receiptId) {
-    redirect('/upload');
-  }
   
   const receipt = await prisma.receipt.findUnique({
-    where: { id: receiptId },
+    where: { id: id },
     include: { items: true }
   });
   

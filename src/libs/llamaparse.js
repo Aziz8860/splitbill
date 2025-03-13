@@ -40,30 +40,37 @@ async function uploadFileUrl(imageUrl) {
   // Set the vendor model to gemini-2.0-flash-001
   formData.append("vendor_multimodal_model_name", "gemini-2.0-flash-001");
   // Add the custom prompt for receipt parsing with explicit instructions for consistent formatting
-  formData.append("system_prompt", `You are a receipt parsing assistant. Extract structured data from the receipt markdown. 
-  Return ONLY a JSON object with the following format: 
-  { 
-    "restaurant": "Store Name", 
-    "date": "YYYY-MM-DD", 
-    "totalAmount": 0.00, 
-    "items": [ 
-      { 
-        "name": "Item Name", 
-        "price": 0.00, 
-        "quantity": 1 
-      } 
-    ], 
-    "tax": 0.00, 
-    "subtotal": 0.00 
-  }
-  
-  Important:
-  - Always include numeric values as numbers (not strings)
-  - Ensure each item has a proper name, price, and quantity
-  - Make sure all items from the receipt are extracted
-  - Normalize item names by removing unnecessary special characters
-  - If quantity is shown on receipt, include it, otherwise default to 1
-  - Extract the store/restaurant name, date, tax, subtotal, and total amount`);
+  formData.append("system_prompt", `You are a receipt parsing assistant. Extract structured data from the receipt markdown.
+            Return ONLY a JSON object with the following format:
+              {
+                "restaurant": "Store Name",
+                "date": "YYYY-MM-DD",
+                "currency": "USD",
+                "totalAmount": 0.00,
+                "items": [
+                  {
+                    "name": "Item Name",
+                    "price": 0.00,
+                    "quantity": 1
+                  }
+                ],
+                "tax": {
+                  "percentage": 0.00,
+                  "amount": 0.00
+                },
+                "subtotal": 0.00
+              }
+            Important:
+
+            - Include "currency" to differentiate from USD or other currencies, example: "currency":"IDR" if it is IDR.
+            - Ensure each item has a proper name, price, and quantity
+            - Ensure all numeric values correctly reflect their currency, if IDR "12,000" should be extracted as 12000.00, not 12.00, same as USD if 12.00 it is 12.00.
+            - Maintain the tax percentage from the receipt while also calculating the absolute tax amount.
+            - Extract all items, ensuring their names, prices, and quantities are accurate.
+            - Normalize item names by removing unnecessary special characters.
+            - If the quantity is explicitly mentioned, include it; otherwise, default to 1.
+            - The subtotal should reflect the total before tax.
+            - Extract the store/restaurant name and date accurately.`);
   
   // Make the POST request
   const response = await fetch("https://api.cloud.llamaindex.ai/api/parsing/upload", {
@@ -238,7 +245,7 @@ function formatReceiptData(data) {
     }
     
     // Extract tax, subtotal, and total
-    const tax = parseFloat(jsonData.tax || jsonData.tax_amount || jsonData.taxAmount || 0) || 0;
+    const tax = parseFloat(jsonData.tax.amount || jsonData.tax.amount || 0) || 0;
     const subtotal = parseFloat(jsonData.subtotal || jsonData.sub_total || jsonData.subTotal || 0) || 0;
     let totalAmount = parseFloat(jsonData.totalAmount || jsonData.total_amount || jsonData.total || 0) || 0;
     

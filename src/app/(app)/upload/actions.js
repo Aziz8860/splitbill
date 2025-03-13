@@ -46,6 +46,8 @@ export async function uploadReceiptAction(formData) {
         debug: { receiptData }
       };
     }
+    
+    console.log(receiptData)
 
     // Ensure items array is properly formatted
     const formattedData = {
@@ -145,7 +147,7 @@ export async function saveManualReceiptAction(data) {
     return { 
       success: true, 
       receipt, 
-      redirectUrl: `/upload/review?id=${receipt.id}` 
+      redirectUrl: `/review/${receipt.id}` 
     };
   } catch (error) {
     console.error("Manual receipt error:", error);
@@ -153,70 +155,6 @@ export async function saveManualReceiptAction(data) {
       error: error.message || "Failed to save receipt",
       stack: error.stack 
     };
-  }
-}
-
-export async function updateReceiptItems(data) {
-  try {
-    // Check user authentication
-    const session = await auth();
-    if (!session?.user) {
-      return { error: "You must be logged in to update receipts" };
-    }
-
-    const { receiptId, items, totalAmount, tax, subtotal, restaurant, date } = data;
-
-    // Get the current receipt to verify ownership
-    const currentReceipt = await prisma.receipt.findUnique({
-      where: { id: receiptId },
-      include: { items: true }
-    });
-
-    if (!currentReceipt) {
-      return { error: "Receipt not found" };
-    }
-
-    if (currentReceipt.userId !== session.user.id) {
-      return { error: "You don't have permission to modify this receipt" };
-    }
-
-    // Update receipt and items
-    const updatedReceipt = await prisma.$transaction(async (tx) => {
-      // Delete existing items
-      await tx.item.deleteMany({
-        where: { receiptId }
-      });
-
-      // Update receipt
-      const receipt = await tx.receipt.update({
-        where: { id: receiptId },
-        data: {
-          totalAmount,
-          tax,
-          subtotal,
-          restaurant,
-          date,
-          items: {
-            create: items.map(item => ({
-              name: item.name,
-              price: item.price,
-              quantity: item.quantity
-            }))
-          }
-        },
-        include: {
-          items: true
-        }
-      });
-
-      return receipt;
-    });
-
-    revalidatePath("/dashboard");
-    return { success: true, receipt: updatedReceipt };
-  } catch (error) {
-    console.error("Receipt update error:", error);
-    return { error: error.message || "Failed to update receipt" };
   }
 }
 

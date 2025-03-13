@@ -32,6 +32,8 @@ export default function UploadForm() {
 
   // Function to update the form with parsed data
   const updateFormWithParsedData = (data, imageUrl) => {
+
+    console.log("upadteFormWithParsedData", data)
     // Create a map of existing items for easy lookup
     const existingItemsMap = {};
     receiptData.items.forEach(item => {
@@ -89,14 +91,14 @@ export default function UploadForm() {
     // Calculate totals
     const newTotalAmount = calculateTotalFromItems(newItems);
     const newSubtotal = parseFloat(data.subtotal?.toString() || newTotalAmount) || 0;
-    const newTax = parseFloat(data.tax?.toString() || receiptData.tax?.toString() || 0) || 0;
+    // const newTax = parseFloat(data.tax?.toString() || receiptData.tax?.toString() || 0) || 0;
     
     // Update the receipt data state
     setReceiptData({
       restaurant: restaurant,
       date: data.date ? new Date(data.date).toISOString().split('T')[0] : receiptData.date,
       totalAmount: newTotalAmount.toString(),
-      tax: (parseFloat(receiptData.tax) + newTax).toString(),
+      tax: (parseFloat(receiptData.tax)).toString(),
       subtotal: (parseFloat(receiptData.subtotal || 0) + newSubtotal).toString(),
       items: newItems,
       splitMethod: "evenly",
