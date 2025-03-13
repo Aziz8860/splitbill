@@ -10,7 +10,7 @@ export default async function ReviewReceiptPage( {params} ) {
   // if (!session?.user) {
   //   redirect('/login');
   // }
-  // const searchParams = useSearchParams()
+  
   const {id} = params ;
   
   

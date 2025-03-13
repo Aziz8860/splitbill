@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { updateReceiptItems } from '@/app/(app)/review/[id]/actions';
+import { updateReceiptItems } from '@/app/(app)/receipts/[id]/review/actions';
 
 export default function ReceiptEditor({ receipt, isNewReceipt = false }) {
   const router = useRouter();
