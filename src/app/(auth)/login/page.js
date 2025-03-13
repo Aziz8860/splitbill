@@ -11,7 +11,7 @@ export default function Page() {
         <p className="tracking-extra-tight text-slate-500 text-sm">
           Tidak ingin Login ?
         </p>
-        <Button className="w-full bg-indigo-600 text-white rounded-full">
+        <Button className="w-full bg-primary text-white rounded-full hover:bg-primary-600 transition-colors duration-300">
           <Link href="/dashboard">Continue as guests</Link>
         </Button>
       </div>

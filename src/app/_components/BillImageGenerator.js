@@ -123,13 +123,16 @@ export default function BillImageGenerator({
         <Button
           onClick={generateImage}
           disabled={isGenerating}
-          className="flex-1 bg-indigo-600 text-white"
+          className="flex-1 bg-primary text-white hover:bg-primary-600 transition-colors duration-300"
         >
           {isGenerating ? 'Generating...' : 'Generate Image'}
         </Button>
 
         {shareableUrl && (
-          <Button onClick={shareToWhatsapp} className="bg-green-600 text-white">
+          <Button
+            onClick={shareToWhatsapp}
+            className="bg-success text-white hover:bg-success-600 transition-colors duration-300"
+          >
             <Share className="w-4 h-4 mr-2" />
             Share to WhatsApp
           </Button>
