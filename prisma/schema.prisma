@@ -40,6 +40,10 @@ model Receipt {
   subtotal    Float       @default(0) 
   splitMethod String?     @default("evenly")
   participants Json?      // Store participants as JSON array
+  currency    String?     @default("USD")
+  paymentMethod String?   @default("Cash")
+  accountNumber String?
+  accountName String?
   createdAt   DateTime  @default(now())
   items       Item[]    @relation("ReceiptToItems")
   splitBills  SplitBill[]

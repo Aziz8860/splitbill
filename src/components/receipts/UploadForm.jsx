@@ -29,6 +29,10 @@ export default function UploadForm() {
     splitMethod: 'evenly', // Default to evenly split
     imageUrl: null,
     people: [{ name: '' }], // Add this line to store people
+    currency: 'IDR', // Default currency
+    paymentMethod: 'Cash', // Default payment method
+    accountNumber: '', // Account number for bank transfers
+    accountName: '', // Account name for bank transfers
   });
 
   const fileInputRef = useRef(null);
@@ -41,6 +45,33 @@ export default function UploadForm() {
     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
       navigator.userAgent
     );
+
+  // Helper function to get currency symbol
+  const getCurrencySymbol = (currencyCode) => {
+    const currencySymbols = {
+      USD: '$',
+      EUR: '€',
+      GBP: '£',
+      JPY: '¥',
+      IDR: 'Rp',
+      SGD: 'S$',
+      AUD: 'A$',
+      CAD: 'C$',
+    };
+    return currencySymbols[currencyCode] || currencyCode;
+  };
+
+  // Helper function to format number with dots for thousands
+  const formatNumberWithDots = (number) => {
+    // Convert to string with 2 decimal places
+    const numStr = parseFloat(number || 0).toFixed(2);
+    // Split into integer and decimal parts
+    const [intPart, decPart] = numStr.split('.');
+    // Add dots to integer part
+    const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    // Return formatted number with decimal part
+    return `${formattedInt},${decPart}`;
+  };
 
   // Function to update the form with parsed data
   const updateFormWithParsedData = (data, imageUrl) => {
@@ -106,10 +137,10 @@ export default function UploadForm() {
 
     // Calculate totals
     const newTotalAmount = calculateTotalFromItems(newItems);
-    const newSubtotal = (data.subtotal || newTotalAmount) || 0;
-    
-    const newTax = (data.tax || receiptData.tax || 0) || 0;
-    
+    const newSubtotal = data.subtotal || newTotalAmount || 0;
+
+    const newTax = data.tax || receiptData.tax || 0 || 0;
+
     // Update the receipt data state with empty people array if not exists
     setReceiptData({
       restaurant: restaurant,
@@ -126,6 +157,10 @@ export default function UploadForm() {
       imageUrl: imageUrls[0] || null,
       // Make sure to keep the current people array or initialize a new one
       people: receiptData.people || [{ name: '' }],
+      currency: data.currency || receiptData.currency,
+      paymentMethod: data.paymentMethod || receiptData.paymentMethod,
+      accountNumber: data.accountNumber || receiptData.accountNumber,
+      accountName: data.accountName || receiptData.accountName,
     });
 
     setPreviewUrls(imageUrls);
@@ -163,7 +198,7 @@ export default function UploadForm() {
         toast.error(result.error);
       } else {
         toast.success('Receipt processed successfully!');
-        
+
         // Update the form with the parsed data
         if (result.parsedData) {
           updateFormWithParsedData(result.parsedData, result.imageUrl);
@@ -181,7 +216,7 @@ export default function UploadForm() {
   async function handleSubmit(e) {
     e.preventDefault();
     setIsUploading(true);
-  
+
     try {
       // Format the data for the database
       const formattedData = {
@@ -197,18 +232,23 @@ export default function UploadForm() {
             name: item.name,
             price: parseFloat(item.price) || 0,
             quantity: parseInt(item.quantity) || 1,
-            assignedTo: item.assignedTo
+            assignedTo: item.assignedTo,
           })),
         splitMethod: receiptData.splitMethod,
         // Include people data if using custom split
-        people: receiptData.splitMethod === 'custom' 
-          ? receiptData.people.filter(p => p.name.trim() !== '')
-          : []
+        people:
+          receiptData.splitMethod === 'custom'
+            ? receiptData.people.filter((p) => p.name.trim() !== '')
+            : [],
+        currency: receiptData.currency,
+        paymentMethod: receiptData.paymentMethod,
+        accountNumber: receiptData.accountNumber,
+        accountName: receiptData.accountName,
       };
-  
+
       // Save the receipt
       const result = await saveManualReceiptAction(formattedData);
-  
+
       if (result.error) {
         toast.error(result.error);
       } else {
@@ -364,21 +404,24 @@ export default function UploadForm() {
   const removePerson = (index) => {
     // Don't remove if it's the last person
     if (receiptData.people.length <= 1) return;
-    
+
     const updatedPeople = receiptData.people.filter((_, i) => i !== index);
-    
+
     // Also remove this person from any item assignments
-    const updatedItems = receiptData.items.map(item => {
+    const updatedItems = receiptData.items.map((item) => {
       if (item.assignedTo) {
         // Create new assignedTo array without the removed person
-        const newAssignedTo = Array.isArray(item.assignedTo) 
-          ? item.assignedTo.filter(personIndex => personIndex !== index && personIndex < updatedPeople.length)
+        const newAssignedTo = Array.isArray(item.assignedTo)
+          ? item.assignedTo.filter(
+              (personIndex) =>
+                personIndex !== index && personIndex < updatedPeople.length
+            )
           : [];
         return { ...item, assignedTo: newAssignedTo };
       }
       return item;
     });
-    
+
     setReceiptData({
       ...receiptData,
       people: updatedPeople,
@@ -390,19 +433,19 @@ export default function UploadForm() {
   const toggleItemAssignment = (itemIndex, personIndex) => {
     const updatedItems = [...receiptData.items];
     const item = updatedItems[itemIndex];
-    
+
     // Initialize assignedTo as an array if it doesn't exist
     if (!item.assignedTo || !Array.isArray(item.assignedTo)) {
       item.assignedTo = [];
     }
-    
+
     // Toggle the assignment - add or remove the person index
     if (item.assignedTo.includes(personIndex)) {
-      item.assignedTo = item.assignedTo.filter(idx => idx !== personIndex);
+      item.assignedTo = item.assignedTo.filter((idx) => idx !== personIndex);
     } else {
       item.assignedTo = [...item.assignedTo, personIndex];
     }
-    
+
     updatedItems[itemIndex] = item;
     setReceiptData({
       ...receiptData,
@@ -665,6 +708,86 @@ export default function UploadForm() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700">
+              Currency
+            </label>
+            <select
+              value={receiptData.currency}
+              onChange={(e) =>
+                setReceiptData({ ...receiptData, currency: e.target.value })
+              }
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+              required
+            >
+              <option value="USD">USD ($)</option>
+              <option value="EUR">EUR (€)</option>
+              <option value="GBP">GBP (£)</option>
+              <option value="JPY">JPY (¥)</option>
+              <option value="IDR">IDR (Rp)</option>
+              <option value="SGD">SGD (S$)</option>
+              <option value="AUD">AUD (A$)</option>
+              <option value="CAD">CAD (C$)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Payment Method
+            </label>
+            <select
+              value={receiptData.paymentMethod}
+              onChange={(e) =>
+                setReceiptData({
+                  ...receiptData,
+                  paymentMethod: e.target.value,
+                })
+              }
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+              required
+            >
+              <option value="Cash">Cash</option>
+              <option value="BCA">BCA</option>
+              <option value="Mandiri">Mandiri</option>
+              <option value="BRI">BRI</option>
+              <option value="BSI">BSI</option>
+              <option value="Gopay">Gopay</option>
+              <option value="Ovo">Ovo</option>
+              <option value="ShopeePay">ShopeePay</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Account Number
+            </label>
+            <input
+              type="text"
+              value={receiptData.accountNumber}
+              onChange={(e) =>
+                setReceiptData({
+                  ...receiptData,
+                  accountNumber: e.target.value,
+                })
+              }
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              Account Name
+            </label>
+            <input
+              type="text"
+              value={receiptData.accountName}
+              onChange={(e) =>
+                setReceiptData({ ...receiptData, accountName: e.target.value })
+              }
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
               Split Method
             </label>
             <select
@@ -692,7 +815,7 @@ export default function UploadForm() {
                     <PlusIcon className="h-5 w-5" aria-hidden="true" />
                   </button>
                 </div>
-                
+
                 {receiptData.people.map((person, index) => (
                   <div key={index} className="flex gap-2 items-center">
                     <div className="flex-1">
@@ -744,7 +867,9 @@ export default function UploadForm() {
                     <input
                       type="text"
                       value={item.name}
-                      onChange={(e) => updateItem(itemIndex, 'name', e.target.value)}
+                      onChange={(e) =>
+                        updateItem(itemIndex, 'name', e.target.value)
+                      }
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                       required
                     />
@@ -756,7 +881,9 @@ export default function UploadForm() {
                       type="number"
                       step="0.01"
                       value={item.price}
-                      onChange={(e) => updateItem(itemIndex, 'price', e.target.value)}
+                      onChange={(e) =>
+                        updateItem(itemIndex, 'price', e.target.value)
+                      }
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                       required
                     />
@@ -787,23 +914,35 @@ export default function UploadForm() {
                     <TrashIcon className="h-5 w-5" />
                   </button>
                 </div>
-                
+
                 {/* Add assignment checkboxes if using custom split */}
                 {receiptData.splitMethod === 'custom' && item.name && (
                   <div className="ml-2 mt-1 flex flex-wrap gap-2">
-                    {receiptData.people.map((person, personIndex) => (
-                      person.name && (
-                        <label key={personIndex} className="inline-flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={item.assignedTo && Array.isArray(item.assignedTo) && item.assignedTo.includes(personIndex)}
-                            onChange={() => toggleItemAssignment(itemIndex, personIndex)}
-                            className="rounded border-gray-300 text-primary-600 shadow-sm focus:border-primary-300 focus:ring focus:ring-primary-200 focus:ring-opacity-50"
-                          />
-                          <span className="ml-1 text-sm text-gray-700">{person.name}</span>
-                        </label>
-                      )
-                    ))}
+                    {receiptData.people.map(
+                      (person, personIndex) =>
+                        person.name && (
+                          <label
+                            key={personIndex}
+                            className="inline-flex items-center"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={
+                                item.assignedTo &&
+                                Array.isArray(item.assignedTo) &&
+                                item.assignedTo.includes(personIndex)
+                              }
+                              onChange={() =>
+                                toggleItemAssignment(itemIndex, personIndex)
+                              }
+                              className="rounded border-gray-300 text-primary-600 shadow-sm focus:border-primary-300 focus:ring focus:ring-primary-200 focus:ring-opacity-50"
+                            />
+                            <span className="ml-1 text-sm text-gray-700">
+                              {person.name}
+                            </span>
+                          </label>
+                        )
+                    )}
                   </div>
                 )}
               </div>
@@ -812,7 +951,27 @@ export default function UploadForm() {
 
           {/* Calculated total (for reference) */}
           <div className="text-sm text-gray-600">
-            Items total: ${calculateTotal()}
+            <div className="flex justify-between items-center mb-2">
+              <span>Subtotal:</span>
+              <span>
+                {getCurrencySymbol(receiptData.currency)}
+                {formatNumberWithDots(receiptData.subtotal)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center mb-2">
+              <span>Tax:</span>
+              <span>
+                {getCurrencySymbol(receiptData.currency)}
+                {formatNumberWithDots(receiptData.tax)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center font-bold">
+              <span>Total:</span>
+              <span>
+                {getCurrencySymbol(receiptData.currency)}
+                {formatNumberWithDots(receiptData.totalAmount)}
+              </span>
+            </div>
             {parseFloat(calculateTotal()) !==
               parseFloat(receiptData.totalAmount) &&
               receiptData.totalAmount && (

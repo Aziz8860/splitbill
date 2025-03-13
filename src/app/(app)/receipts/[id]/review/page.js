@@ -18,7 +18,30 @@ export default async function ReviewReceiptPage({ params }) {
   // Get the receipt with items
   const receipt = await prisma.receipt.findUnique({
     where: { id: id },
-    include: { items: true },
+    select: {
+      id: true,
+      restaurant: true,
+      date: true,
+      totalAmount: true,
+      tax: true,
+      subtotal: true,
+      splitMethod: true,
+      participants: true,
+      currency: true,
+      paymentMethod: true,
+      accountNumber: true,
+      accountName: true,
+      userId: true,
+      items: {
+        select: {
+          id: true,
+          name: true,
+          price: true,
+          quantity: true,
+          assignedTo: true,
+        },
+      },
+    },
   });
 
   if (!receipt || receipt.userId !== session.user.id) {

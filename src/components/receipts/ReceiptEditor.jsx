@@ -56,6 +56,36 @@ export default function ReceiptEditor({ receipt, isNewReceipt = false }) {
     return [];
   });
 
+  // Helper function to get currency symbol
+  const getCurrencySymbol = (currencyCode) => {
+    const currencySymbols = {
+      USD: '$',
+      EUR: '€',
+      GBP: '£',
+      JPY: '¥',
+      IDR: 'Rp',
+      SGD: 'S$',
+      AUD: 'A$',
+      CAD: 'C$',
+    };
+    return currencySymbols[currencyCode] || '$';
+  };
+
+  // Helper function to format number with dots for thousands
+  const formatNumberWithDots = (number) => {
+    // Convert to string with 2 decimal places
+    const numStr = parseFloat(number || 0).toFixed(2);
+    // Split into integer and decimal parts
+    const [intPart, decPart] = numStr.split('.');
+    // Add dots to integer part
+    const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    // Return formatted number with decimal part
+    return `${formattedInt},${decPart}`;
+  };
+
+  // Get the currency symbol
+  const currencySymbol = getCurrencySymbol(receipt?.currency || 'USD');
+
   // Log receipt data for debugging
   // useEffect(() => {
   //   console.log('Receipt data:', receipt);
@@ -191,13 +221,16 @@ export default function ReceiptEditor({ receipt, isNewReceipt = false }) {
     // Create a message with receipt details
     const message =
       `Receipt from ${restaurant} on ${date}\n` +
-      `Total: $${totalAmount.toFixed(2)}\n` +
+      `Total: ${currencySymbol}${totalAmount.toFixed(2)}\n` +
       `Split method: ${
         splitMethod === 'custom' ? 'Custom Split' : 'Split Evenly'
       }\n\n` +
       `Who must pay:\n` +
       personAmounts
-        .map((person) => `${person.name}: $${person.amount.toFixed(2)}`)
+        .map(
+          (person) =>
+            `${person.name}: ${currencySymbol}${person.amount.toFixed(2)}`
+        )
         .join('\n');
 
     // Encode the message for URL
@@ -250,7 +283,7 @@ export default function ReceiptEditor({ receipt, isNewReceipt = false }) {
       )}
 
       <div ref={receiptRef} className="bg-white shadow-md rounded-lg p-6 mb-6">
-        <div className="text-2xl font-bold text-center mb-6 bg-gradient-to-r from-purple-500 to-purple-900 text-transparent bg-clip-text">
+        <div className="text-2xl font-bold text-center mb-6 text-black">
           <div className="flex flex-row items-center justify-center">
             <Image
               src="/logo-splitbill.svg"
@@ -277,6 +310,78 @@ export default function ReceiptEditor({ receipt, isNewReceipt = false }) {
             <div className="p-2 border rounded bg-gray-50">{date}</div>
           </div>
         </div>
+
+        {/* Payment Information Section */}
+        <div className="mb-6">
+          <h3 className="text-sm font-medium text-gray-700 mb-2">
+            Payment Information
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">
+                Currency
+              </label>
+              <div className="p-2 border rounded bg-gray-50">
+                {receipt?.currency || 'USD'}
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">
+                Payment Method
+              </label>
+              <div className="p-2 border rounded bg-gray-50">
+                {receipt?.paymentMethod || 'Cash'}
+              </div>
+            </div>
+            {receipt?.paymentMethod === 'Transfer' && (
+              <>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">
+                    Account Number
+                  </label>
+                  <div className="p-2 border rounded bg-gray-50">
+                    {receipt?.accountNumber || '-'}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">
+                    Account Name
+                  </label>
+                  <div className="p-2 border rounded bg-gray-50">
+                    {receipt?.accountName || '-'}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {receipt?.accountName &&
+          receipt?.accountNumber &&
+          receipt?.paymentMethod !== 'Cash' && (
+            <div className="border-t pt-4 mb-6">
+              <h3 className="text-lg font-semibold mb-3">Payment Details</h3>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Image
+                    src={`/logo/Logo_${receipt?.paymentMethod}.png`}
+                    alt={receipt?.paymentMethod}
+                    width={40}
+                    height={40}
+                    className="mr-3"
+                  />
+                  <div>
+                    <p className="text-sm text-gray-500">Account Number</p>
+                    <p className="font-medium">{receipt?.accountNumber}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-gray-500">Account Name</p>
+                  <p className="font-medium">{receipt?.accountName}</p>
+                </div>
+              </div>
+            </div>
+          )}
 
         {/* Add Split Method Display */}
         <div className="mb-6">
@@ -334,13 +439,17 @@ export default function ReceiptEditor({ receipt, isNewReceipt = false }) {
                       <div className="p-1">{item.name}</div>
                     </td>
                     <td className="py-2 px-3 text-right">
-                      <div className="p-1">${item.price.toFixed(2)}</div>
+                      <div className="p-1">
+                        {currencySymbol}
+                        {formatNumberWithDots(item.price)}
+                      </div>
                     </td>
                     <td className="py-2 px-3 text-right">
                       <div className="p-1">{item.quantity}</div>
                     </td>
                     <td className="py-2 px-3 text-right">
-                      ${(item.price * item.quantity).toFixed(2)}
+                      {currencySymbol}
+                      {formatNumberWithDots(item.price * item.quantity)}
                     </td>
                     {splitMethod === 'custom' &&
                       people &&
@@ -401,7 +510,8 @@ export default function ReceiptEditor({ receipt, isNewReceipt = false }) {
                     <div className="flex justify-between items-center">
                       <span className="font-medium">{person.name}</span>
                       <span className="text-lg font-bold text-green-600">
-                        ${person.amount.toFixed(2)}
+                        {currencySymbol}
+                        {formatNumberWithDots(person.amount)}
                       </span>
                     </div>
                   </div>
@@ -414,17 +524,26 @@ export default function ReceiptEditor({ receipt, isNewReceipt = false }) {
         <div className="border-t pt-4">
           <div className="flex justify-between items-center mb-2">
             <span className="font-medium">Subtotal:</span>
-            <span>${calculateSubtotal().toFixed(2)}</span>
+            <span>
+              {currencySymbol}
+              {formatNumberWithDots(calculateSubtotal())}
+            </span>
           </div>
 
           <div className="flex justify-between items-center mb-2">
             <span className="font-medium">Tax:</span>
-            <span>${tax.toFixed(2)}</span>
+            <span>
+              {currencySymbol}
+              {formatNumberWithDots(tax)}
+            </span>
           </div>
 
           <div className="flex justify-between items-center mb-2 font-bold text-lg">
             <span>Total:</span>
-            <span>${totalAmount.toFixed(2)}</span>
+            <span>
+              {currencySymbol}
+              {formatNumberWithDots(totalAmount)}
+            </span>
           </div>
         </div>
 
@@ -434,7 +553,7 @@ export default function ReceiptEditor({ receipt, isNewReceipt = false }) {
 
           {/* Gray small text below the line */}
           <div className="text-sm text-gray-500 mt-2 text-center">
-            © Bill splited by splitbill
+            &copy; Bill splited by splitbill
             <br />
             https://splitbill-beryl.vercel.app/
           </div>
@@ -443,10 +562,10 @@ export default function ReceiptEditor({ receipt, isNewReceipt = false }) {
 
       <div className="flex justify-end gap-4 mb-6 buttons-container">
         <button
-          onClick={() => router.back()}
+          onClick={() => router.push('/dashboard')}
           className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100"
         >
-          Back
+          Back to dashboard
         </button>
         <button
           onClick={shareToWhatsApp}

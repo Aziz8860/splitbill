@@ -155,6 +155,10 @@ export async function saveManualReceiptAction(data) {
         restaurant: data.restaurant || "Unknown Restaurant",
         tax: parseFloat(data.tax) || 0,
         subtotal: parseFloat(data.subtotal) || 0,
+        currency: data.currency || "USD",
+        paymentMethod: data.paymentMethod || "Cash",
+        accountNumber: data.accountNumber || null,
+        accountName: data.accountName || null,
         items: {
           create: (data.items || []).map(item => {
             // Process assignedTo for custom split

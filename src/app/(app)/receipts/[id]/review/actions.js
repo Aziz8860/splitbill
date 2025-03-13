@@ -22,6 +22,10 @@ export async function updateReceiptItems(data) {
       date,
       splitMethod,
       people,
+      currency,
+      paymentMethod,
+      accountNumber,
+      accountName,
     } = data;
 
     // Get the current receipt to verify ownership
@@ -56,6 +60,10 @@ export async function updateReceiptItems(data) {
           date,
           splitMethod: splitMethod || 'evenly',
           participants: people && people.length > 0 ? people : undefined,
+          currency,
+          paymentMethod,
+          accountNumber,
+          accountName,
           items: {
             create: items.map((item) => ({
               name: item.name,
