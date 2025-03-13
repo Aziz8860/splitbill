@@ -47,7 +47,7 @@ export async function uploadReceiptAction(formData) {
       };
     }
     
-    console.log(receiptData)
+    
 
     // Ensure items array is properly formatted
     const formattedData = {
@@ -74,7 +74,7 @@ export async function uploadReceiptAction(formData) {
         ? receiptData.subtotal 
         : parseFloat(receiptData.subtotal || 0) || 0,
     };
-
+    console.log("dari actions upload",formattedData)
     // Return the parsed data for editing in the form before saving to database
     return { 
       success: true, 

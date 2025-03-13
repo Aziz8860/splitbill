@@ -22,9 +22,9 @@ export default function UploadForm() {
   const [receiptData, setReceiptData] = useState({
     restaurant: '',
     date: new Date().toISOString().split('T')[0],
-    totalAmount: '',
-    tax: '',
-    subtotal: '',
+    totalAmount: 0,
+    tax: 0,
+    subtotal: 0,
     items: [{ name: '', price: '', quantity: 1 }],
     splitMethod: 'evenly', // Default to evenly split
     imageUrl: null,
@@ -44,7 +44,7 @@ export default function UploadForm() {
   // Function to update the form with parsed data
   const updateFormWithParsedData = (data, imageUrl) => {
 
-    console.log("upadteFormWithParsedData", data)
+    
     // Create a map of existing items for easy lookup
     const existingItemsMap = {};
     receiptData.items.forEach((item) => {
@@ -104,11 +104,10 @@ export default function UploadForm() {
 
     // Calculate totals
     const newTotalAmount = calculateTotalFromItems(newItems);
-    const newSubtotal =
-      parseFloat(data.subtotal?.toString() || newTotalAmount) || 0;
-    const newTax =
-      parseFloat(data.tax?.toString() || receiptData.tax?.toString() || 0) || 0;
-
+    const newSubtotal = (data.subtotal || newTotalAmount) || 0;
+    
+    const newTax = (data.tax || receiptData.tax || 0) || 0;
+    
     // Update the receipt data state
     setReceiptData({
       restaurant: restaurant,
@@ -160,7 +159,7 @@ export default function UploadForm() {
         toast.error(result.error);
       } else {
         toast.success('Receipt processed successfully!');
-        console.log(result.parsedData);
+        
         // Update the form with the parsed data
         if (result.parsedData) {
           updateFormWithParsedData(result.parsedData, result.imageUrl);
