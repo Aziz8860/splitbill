@@ -28,6 +28,7 @@ export default function UploadForm() {
     items: [{ name: '', price: '', quantity: 1 }],
     splitMethod: 'evenly', // Default to evenly split
     imageUrl: null,
+    people: [{ name: '' }], // Add this line to store people
   });
 
   const fileInputRef = useRef(null);
@@ -43,8 +44,6 @@ export default function UploadForm() {
 
   // Function to update the form with parsed data
   const updateFormWithParsedData = (data, imageUrl) => {
-
-    
     // Create a map of existing items for easy lookup
     const existingItemsMap = {};
     receiptData.items.forEach((item) => {
@@ -82,13 +81,16 @@ export default function UploadForm() {
         newItems[index] = {
           ...newItems[index],
           quantity: existingQuantity + newQuantity,
+          // Ensure assignedTo exists and is an array
+          assignedTo: newItems[index].assignedTo || [],
         };
       } else {
-        // Otherwise add as a new item
+        // Otherwise add as a new item with assignedTo as an empty array
         newItems.push({
           name: newItem.name || '',
           price: newItem.price?.toString() || '',
           quantity: newItem.quantity || 1,
+          assignedTo: [], // Initialize assignedTo as empty array
         });
       }
     });
@@ -108,7 +110,7 @@ export default function UploadForm() {
     
     const newTax = (data.tax || receiptData.tax || 0) || 0;
     
-    // Update the receipt data state
+    // Update the receipt data state with empty people array if not exists
     setReceiptData({
       restaurant: restaurant,
       date: data.date
@@ -120,8 +122,10 @@ export default function UploadForm() {
         parseFloat(receiptData.subtotal || 0) + newSubtotal
       ).toString(),
       items: newItems,
-      splitMethod: 'evenly',
+      splitMethod: receiptData.splitMethod, // Keep current split method
       imageUrl: imageUrls[0] || null,
+      // Make sure to keep the current people array or initialize a new one
+      people: receiptData.people || [{ name: '' }],
     });
 
     setPreviewUrls(imageUrls);
@@ -177,7 +181,7 @@ export default function UploadForm() {
   async function handleSubmit(e) {
     e.preventDefault();
     setIsUploading(true);
-
+  
     try {
       // Format the data for the database
       const formattedData = {
@@ -193,13 +197,18 @@ export default function UploadForm() {
             name: item.name,
             price: parseFloat(item.price) || 0,
             quantity: parseInt(item.quantity) || 1,
+            assignedTo: item.assignedTo
           })),
         splitMethod: receiptData.splitMethod,
+        // Include people data if using custom split
+        people: receiptData.splitMethod === 'custom' 
+          ? receiptData.people.filter(p => p.name.trim() !== '')
+          : []
       };
-
+  
       // Save the receipt
       const result = await saveManualReceiptAction(formattedData);
-
+  
       if (result.error) {
         toast.error(result.error);
       } else {
@@ -330,6 +339,74 @@ export default function UploadForm() {
       ...receiptData,
       items: updatedItems,
       totalAmount: newTotal.toFixed(2),
+    });
+  };
+
+  // Add a new person to the people array
+  const addPerson = () => {
+    setReceiptData({
+      ...receiptData,
+      people: [...receiptData.people, { name: '' }],
+    });
+  };
+
+  // Update a person in the people array
+  const updatePerson = (index, name) => {
+    const updatedPeople = [...receiptData.people];
+    updatedPeople[index] = { name };
+    setReceiptData({
+      ...receiptData,
+      people: updatedPeople,
+    });
+  };
+
+  // Remove a person from the people array
+  const removePerson = (index) => {
+    // Don't remove if it's the last person
+    if (receiptData.people.length <= 1) return;
+    
+    const updatedPeople = receiptData.people.filter((_, i) => i !== index);
+    
+    // Also remove this person from any item assignments
+    const updatedItems = receiptData.items.map(item => {
+      if (item.assignedTo) {
+        // Create new assignedTo array without the removed person
+        const newAssignedTo = Array.isArray(item.assignedTo) 
+          ? item.assignedTo.filter(personIndex => personIndex !== index && personIndex < updatedPeople.length)
+          : [];
+        return { ...item, assignedTo: newAssignedTo };
+      }
+      return item;
+    });
+    
+    setReceiptData({
+      ...receiptData,
+      people: updatedPeople,
+      items: updatedItems,
+    });
+  };
+
+  // Toggle assignment of an item to a person
+  const toggleItemAssignment = (itemIndex, personIndex) => {
+    const updatedItems = [...receiptData.items];
+    const item = updatedItems[itemIndex];
+    
+    // Initialize assignedTo as an array if it doesn't exist
+    if (!item.assignedTo || !Array.isArray(item.assignedTo)) {
+      item.assignedTo = [];
+    }
+    
+    // Toggle the assignment - add or remove the person index
+    if (item.assignedTo.includes(personIndex)) {
+      item.assignedTo = item.assignedTo.filter(idx => idx !== personIndex);
+    } else {
+      item.assignedTo = [...item.assignedTo, personIndex];
+    }
+    
+    updatedItems[itemIndex] = item;
+    setReceiptData({
+      ...receiptData,
+      items: updatedItems,
     });
   };
 
@@ -600,8 +677,49 @@ export default function UploadForm() {
               <option value="evenly">Split Evenly</option>
               <option value="custom">Custom Split</option>
             </select>
+            {/* Add this after the Split Method select dropdown */}
+            {receiptData.splitMethod === 'custom' && (
+              <div className="space-y-2 mt-4">
+                <div className="flex justify-between items-center">
+                  <label className="block text-sm font-medium text-gray-700">
+                    People
+                  </label>
+                  <button
+                    type="button"
+                    onClick={addPerson}
+                    className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    <PlusIcon className="h-5 w-5" aria-hidden="true" />
+                  </button>
+                </div>
+                
+                {receiptData.people.map((person, index) => (
+                  <div key={index} className="flex gap-2 items-center">
+                    <div className="flex-1">
+                      <input
+                        type="text"
+                        value={person.name}
+                        onChange={(e) => updatePerson(index, e.target.value)}
+                        placeholder="Person name"
+                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                        required={receiptData.splitMethod === 'custom'}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removePerson(index)}
+                      className="px-2 text-red-600 hover:text-red-800"
+                      disabled={receiptData.people.length <= 1}
+                    >
+                      <TrashIcon className="h-5 w-5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
+          {/* Update the items section */}
           <div className="space-y-2">
             <div className="flex justify-between items-center">
               <label className="block text-sm font-medium text-gray-700">
@@ -616,57 +734,78 @@ export default function UploadForm() {
               </button>
             </div>
 
-            {receiptData.items.map((item, index) => (
-              <div key={index} className="flex gap-2 items-end">
-                <div className="flex-1">
-                  <label className="block text-xs text-gray-500">
-                    Item Name
-                  </label>
-                  <input
-                    type="text"
-                    value={item.name}
-                    onChange={(e) => updateItem(index, 'name', e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                    required
-                  />
-                </div>
+            {receiptData.items.map((item, itemIndex) => (
+              <div key={itemIndex}>
+                <div className="flex gap-2 items-end">
+                  <div className="flex-1">
+                    <label className="block text-xs text-gray-500">
+                      Item Name
+                    </label>
+                    <input
+                      type="text"
+                      value={item.name}
+                      onChange={(e) => updateItem(itemIndex, 'name', e.target.value)}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                      required
+                    />
+                  </div>
 
-                <div className="w-20">
-                  <label className="block text-xs text-gray-500">Price</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={item.price}
-                    onChange={(e) => updateItem(index, 'price', e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                    required
-                  />
-                </div>
+                  <div className="w-20">
+                    <label className="block text-xs text-gray-500">Price</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={item.price}
+                      onChange={(e) => updateItem(itemIndex, 'price', e.target.value)}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                      required
+                    />
+                  </div>
 
-                <div className="w-20">
-                  <label className="block text-xs text-gray-500">
-                    Quantity
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={item.quantity}
-                    onChange={(e) =>
-                      updateItem(index, 'quantity', e.target.value)
-                    }
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                    required
-                  />
-                </div>
+                  <div className="w-20">
+                    <label className="block text-xs text-gray-500">
+                      Quantity
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={item.quantity}
+                      onChange={(e) =>
+                        updateItem(itemIndex, 'quantity', e.target.value)
+                      }
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                      required
+                    />
+                  </div>
 
-                <button
-                  type="button"
-                  onClick={() => removeItem(index)}
-                  className="h-10 px-2 text-red-600 hover:text-red-800"
-                  disabled={receiptData.items.length <= 1}
-                >
-                  <TrashIcon className="h-5 w-5" />
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => removeItem(itemIndex)}
+                    className="h-10 px-2 text-red-600 hover:text-red-800"
+                    disabled={receiptData.items.length <= 1}
+                  >
+                    <TrashIcon className="h-5 w-5" />
+                  </button>
+                </div>
+                
+                {/* Add assignment checkboxes if using custom split */}
+                {receiptData.splitMethod === 'custom' && item.name && (
+                  <div className="ml-2 mt-1 flex flex-wrap gap-2">
+                    {receiptData.people.map((person, personIndex) => (
+                      person.name && (
+                        <label key={personIndex} className="inline-flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={item.assignedTo && Array.isArray(item.assignedTo) && item.assignedTo.includes(personIndex)}
+                            onChange={() => toggleItemAssignment(itemIndex, personIndex)}
+                            className="rounded border-gray-300 text-primary-600 shadow-sm focus:border-primary-300 focus:ring focus:ring-primary-200 focus:ring-opacity-50"
+                          />
+                          <span className="ml-1 text-sm text-gray-700">{person.name}</span>
+                        </label>
+                      )
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>

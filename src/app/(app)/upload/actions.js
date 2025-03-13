@@ -74,7 +74,7 @@ export async function uploadReceiptAction(formData) {
         ? receiptData.subtotal 
         : parseFloat(receiptData.subtotal || 0) || 0,
     };
-    console.log("dari actions upload",formattedData)
+    
     // Return the parsed data for editing in the form before saving to database
     return { 
       success: true, 
@@ -91,6 +91,7 @@ export async function uploadReceiptAction(formData) {
 }
 
 // Action to handle submit
+// In saveManualReceiptAction, update the formatting of data:
 export async function saveManualReceiptAction(data) {
   try {
     // Check user authentication
@@ -108,6 +109,42 @@ export async function saveManualReceiptAction(data) {
       return { error: "At least one item is required" };
     }
 
+    // For custom split method, validate people are entered
+    if (data.splitMethod === 'custom' && (!data.people || data.people.length === 0)) {
+      return { error: "At least one person is required for custom split" };
+    }
+
+    // First, check if people already exist or create new ones
+    let peopleMap = {};
+    
+    if (data.splitMethod === 'custom' && Array.isArray(data.people)) {
+      // Create people records if they don't exist
+      for (const personData of data.people) {
+        if (personData.name) {
+          // Check if person exists
+          let person = await prisma.person.findFirst({
+            where: {
+              userId: session.user.id,
+              name: personData.name
+            }
+          });
+          
+          // Create if not exists
+          if (!person) {
+            person = await prisma.person.create({
+              data: {
+                userId: session.user.id,
+                name: personData.name
+              }
+            });
+          }
+          
+          // Map the index to the ID
+          peopleMap[data.people.indexOf(personData)] = person.id;
+        }
+      }
+    }
+    
     // Create receipt and items in the database
     const receipt = await prisma.receipt.create({
       data: {
@@ -119,12 +156,28 @@ export async function saveManualReceiptAction(data) {
         tax: parseFloat(data.tax) || 0,
         subtotal: parseFloat(data.subtotal) || 0,
         items: {
-          create: (data.items || []).map(item => ({
-            name: item.name || "Unknown Item",
-            price: parseFloat(item.price) || 0,
-            quantity: parseInt(item.quantity) || 1,
-            assignedTo: data.splitMethod === "custom" ? item.assignedTo || null : null
-          })),
+          create: (data.items || []).map(item => {
+            // Process assignedTo for custom split
+            let assignedTo = null;
+            if (data.splitMethod === 'custom' && item.assignedTo && Array.isArray(item.assignedTo)) {
+              // Convert index-based assignments to ID-based assignments
+              assignedTo = item.assignedTo.map(idx => peopleMap[idx]).filter(id => id);
+              
+              // Store as JSON
+              if (assignedTo.length > 0) {
+                assignedTo = JSON.stringify(assignedTo);
+              } else {
+                assignedTo = null;
+              }
+            }
+            
+            return {
+              name: item.name || "Unknown Item",
+              price: parseFloat(item.price) || 0,
+              quantity: parseInt(item.quantity) || 1,
+              assignedTo
+            };
+          }),
         },
       },
       include: {
@@ -147,7 +200,7 @@ export async function saveManualReceiptAction(data) {
     return { 
       success: true, 
       receipt, 
-      redirectUrl: `/review/${receipt.id}` 
+      redirectUrl: `receipts/${receipt.id}/review/` 
     };
   } catch (error) {
     console.error("Manual receipt error:", error);
@@ -157,4 +210,3 @@ export async function saveManualReceiptAction(data) {
     };
   }
 }
-
