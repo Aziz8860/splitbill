@@ -8,9 +8,10 @@ export async function updateReceiptItems(data) {
   try {
     // Check user authentication
     const session = await auth();
-    if (!session?.user) {
-      return { error: 'You must be logged in to update receipts' };
-    }
+    // Allow non-logged in users to update receipts
+    // if (!session?.user) {
+    //   return { error: 'You must be logged in to update receipts' };
+    // }
 
     const {
       receiptId,
@@ -38,7 +39,8 @@ export async function updateReceiptItems(data) {
       return { error: 'Receipt not found' };
     }
 
-    if (currentReceipt.userId !== session.user.id) {
+    // Only check ownership if this is a user-owned receipt and the session user is trying to edit someone else's receipt
+    if (currentReceipt.userId && session?.user?.id && currentReceipt.userId !== session.user.id) {
       return { error: "You don't have permission to modify this receipt" };
     }
 

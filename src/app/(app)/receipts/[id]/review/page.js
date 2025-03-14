@@ -44,7 +44,17 @@ export default async function ReviewReceiptPage({ params }) {
     },
   });
 
-  if (!receipt || receipt.userId !== session.user.id) {
+  // Check if receipt exists
+  if (!receipt) {
+    redirect('/dashboard');
+  }
+
+  // Only check if receipt belongs to user if it's a user-owned receipt and the user is logged in
+  if (
+    receipt.userId &&
+    session?.user?.id &&
+    receipt.userId !== session.user.id
+  ) {
     redirect('/dashboard');
   }
 
@@ -79,8 +89,8 @@ export default async function ReviewReceiptPage({ params }) {
     splitMethod: receipt.splitMethod,
     hasParticipants: !!receipt.participants,
     participantsRaw: receipt.participants,
-    personIdsFromItems: Array.from(personIds), 
-    peopleDataLength: peopleData.length
+    personIdsFromItems: Array.from(personIds),
+    peopleDataLength: peopleData.length,
   });
 
   // Process the receipt data with proper people information
