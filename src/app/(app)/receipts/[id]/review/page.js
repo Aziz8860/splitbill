@@ -74,19 +74,20 @@ export default async function ReviewReceiptPage({ params }) {
     },
   });
 
+  console.log('Receipt data fetched:', {
+    receiptId: receipt.id,
+    splitMethod: receipt.splitMethod,
+    hasParticipants: !!receipt.participants,
+    participantsRaw: receipt.participants,
+    personIdsFromItems: Array.from(personIds), 
+    peopleDataLength: peopleData.length
+  });
+
   // Process the receipt data with proper people information
   const processedReceipt = {
     ...receipt,
     // Ensure splitMethod is set (default to 'evenly' if not specified)
-    splitMethod: receipt.items.some(
-      (item) =>
-        item.assignedTo &&
-        (typeof item.assignedTo === 'string'
-          ? JSON.parse(item.assignedTo).length > 0
-          : item.assignedTo.length > 0)
-    )
-      ? 'custom'
-      : receipt.splitMethod || 'evenly',
+    splitMethod: receipt.splitMethod || 'evenly',
 
     // Use fetched people data
     people: peopleData,
@@ -102,7 +103,7 @@ export default async function ReviewReceiptPage({ params }) {
               ? JSON.parse(item.assignedTo)
               : item.assignedTo;
         } catch (error) {
-          console.error('Error parsing item assignedTo:', error);
+          console.error('Error parsing assignedTo:', error);
         }
       }
 

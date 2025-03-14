@@ -4,8 +4,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateReceiptItems } from '@/app/(app)/receipts/[id]/review/actions';
-import html2canvas from 'html2canvas';
-import Image from 'next/image';
+import { toPng } from 'html-to-image';
 
 export default function ReceiptEditor({ receipt, isNewReceipt = false }) {
   const router = useRouter();
@@ -21,7 +20,6 @@ export default function ReceiptEditor({ receipt, isNewReceipt = false }) {
     : receipt?.splitMethod || 'evenly';
 
   // Initialize state with corrected values
-  const [items, setItems] = useState(receipt?.items || []);
   const [totalAmount, setTotalAmount] = useState(receipt?.totalAmount || 0);
   const [tax, setTax] = useState(receipt?.tax || 0);
   const [restaurant, setRestaurant] = useState(receipt?.restaurant || '');
@@ -34,16 +32,49 @@ export default function ReceiptEditor({ receipt, isNewReceipt = false }) {
   const [error, setError] = useState('');
   const [splitMethod, setSplitMethod] = useState(correctSplitMethod);
 
-  // Identify unique person IDs from the assignments
-  const [people, setPeople] = useState(() => {
+  // Get participants from receipt
+  const parseParticipants = () => {
+    // First check if we have people data provided directly
     if (receipt?.people && receipt.people.length > 0) {
       return receipt.people;
-    } else if (hasAssignments) {
+    }
+
+    // Otherwise, try to parse from participants field
+    if (receipt?.participants) {
+      try {
+        const parsedParticipants =
+          typeof receipt.participants === 'string'
+            ? JSON.parse(receipt.participants)
+            : receipt.participants;
+
+        if (Array.isArray(parsedParticipants)) {
+          return parsedParticipants;
+        }
+      } catch (error) {
+        console.error('Error parsing participants:', error);
+      }
+    }
+
+    // Finally, try to extract from item assignments
+    if (hasAssignments) {
       // Extract unique person IDs from all item assignments
       const uniquePersonIds = new Set();
       receipt.items.forEach((item) => {
-        if (item.assignedTo && Array.isArray(item.assignedTo)) {
-          item.assignedTo.forEach((personId) => uniquePersonIds.add(personId));
+        if (item.assignedTo) {
+          try {
+            const parsedAssignedTo =
+              typeof item.assignedTo === 'string'
+                ? JSON.parse(item.assignedTo)
+                : item.assignedTo;
+
+            if (Array.isArray(parsedAssignedTo)) {
+              parsedAssignedTo.forEach((personId) =>
+                uniquePersonIds.add(personId)
+              );
+            }
+          } catch (error) {
+            console.error('Error parsing item assignedTo:', error);
+          }
         }
       });
 
@@ -53,8 +84,68 @@ export default function ReceiptEditor({ receipt, isNewReceipt = false }) {
         name: `Person ${id.substring(0, 5)}`, // Use part of the ID as a placeholder name
       }));
     }
+
     return [];
-  });
+  };
+
+  // Get people from either direct people data or participants JSON
+  const [people, setPeople] = useState(parseParticipants());
+
+  // Process items to ensure assignedTo is properly parsed
+  const processedItems =
+    receipt?.items?.map((item) => {
+      // Parse assignedTo if it's a string
+      let assignedTo = [];
+      if (item.assignedTo) {
+        try {
+          assignedTo =
+            typeof item.assignedTo === 'string'
+              ? JSON.parse(item.assignedTo)
+              : item.assignedTo;
+        } catch (error) {
+          console.error('Error parsing assignedTo:', error);
+        }
+      }
+
+      return {
+        ...item,
+        assignedTo: assignedTo,
+      };
+    }) || [];
+
+  // Initialize items state with processed items
+  const [items, setItems] = useState(processedItems);
+
+  // Add a useEffect to correctly handle evenly split receipts
+  useEffect(() => {
+    // For evenly split receipts, ensure we display the participants
+    if (
+      splitMethod === 'evenly' &&
+      people.length === 0 &&
+      receipt?.participants
+    ) {
+      try {
+        const participantsData =
+          typeof receipt.participants === 'string'
+            ? JSON.parse(receipt.participants)
+            : receipt.participants;
+
+        console.log('Trying to parse participants for evenly split receipt:', {
+          participantsRaw: receipt.participants,
+          parsed: participantsData,
+        });
+
+        if (Array.isArray(participantsData) && participantsData.length > 0) {
+          setPeople(participantsData);
+        }
+      } catch (error) {
+        console.error(
+          'Error parsing participants for evenly split receipt:',
+          error
+        );
+      }
+    }
+  }, [splitMethod, people.length, receipt?.participants]);
 
   // Helper function to get currency symbol
   const getCurrencySymbol = (currencyCode) => {
@@ -83,16 +174,27 @@ export default function ReceiptEditor({ receipt, isNewReceipt = false }) {
     return `${formattedInt},${decPart}`;
   };
 
+  // Helper function to get person name from ID
+  const getPersonName = (personId) => {
+    const person = people.find((p) => p.id === personId);
+    return person ? person.name : `Unknown Person`;
+  };
+
   // Get the currency symbol
   const currencySymbol = getCurrencySymbol(receipt?.currency || 'USD');
 
-  // Log receipt data for debugging
-  // useEffect(() => {
-  //   console.log('Receipt data:', receipt);
-  //   console.log('Split method (corrected):', splitMethod);
-  //   console.log('People (extracted):', people);
-  //   console.log('Items:', items);
-  // }, []);
+  // Add debugging logging to help identify why the people column isn't showing
+  useEffect(() => {
+    console.log('Receipt data:', {
+      splitMethod,
+      peopleLength: people?.length || 0,
+      people: people,
+      itemsWithAssignments:
+        items?.filter((item) => item.assignedTo && item.assignedTo.length > 0)
+          .length || 0,
+      totalItems: items?.length || 0,
+    });
+  }, [splitMethod, people, items]);
 
   // Calculate subtotal based on items
   const calculateSubtotal = () => {
@@ -104,21 +206,6 @@ export default function ReceiptEditor({ receipt, isNewReceipt = false }) {
     const subtotal = calculateSubtotal();
     setTotalAmount(parseFloat((subtotal + tax).toFixed(2)));
   }, [items, tax]);
-
-  // Get person name by ID
-  const getPersonName = (personId) => {
-    if (!people || !Array.isArray(people))
-      return `Person ${personId.substring(0, 5)}`;
-
-    // Find by ID
-    const person = people.find((p) => p.id === personId);
-    if (person) {
-      return person.name;
-    }
-
-    // Fallback to truncated ID
-    return `Person ${personId.substring(0, 5)}`;
-  };
 
   // Calculate what each person needs to pay
   const calculatePersonAmounts = () => {
@@ -180,37 +267,61 @@ export default function ReceiptEditor({ receipt, isNewReceipt = false }) {
   // Get the person amounts
   const personAmounts = calculatePersonAmounts();
 
-  // Save as image function
-  const saveAsImage = async () => {
+  // Export receipt as image
+  const exportAsImage = async () => {
     if (!receiptRef.current) return;
 
     try {
       setIsLoading(true);
       setError('');
 
-      // Hide the buttons during capture
+      // Hide buttons during capture
       const buttonsContainer = document.querySelector('.buttons-container');
       if (buttonsContainer) buttonsContainer.style.display = 'none';
 
-      // Capture the receipt as an image
-      const canvas = await html2canvas(receiptRef.current, {
-        scale: 2, // Higher resolution
-        logging: false,
-        useCORS: true,
+      // Capture the receipt as an image using toPng from html-to-image
+      const dataUrl = await toPng(receiptRef.current, {
+        cacheBust: true,
+        quality: 0.95,
         backgroundColor: '#ffffff',
+        // canvasWidth: 1000, // Set a fixed width for better quality
+        // pixelRatio: 2,    // Higher resolution
+        style: {
+          // Force image URLs to be included
+          'img.logo-image': {
+            visibility: 'visible',
+          },
+          'img.payment-logo': {
+            visibility: 'visible',
+          },
+        },
+        filter: (node) => {
+          // Make sure we don't filter out images
+          return true;
+        },
       });
 
       // Show the buttons again
       if (buttonsContainer) buttonsContainer.style.display = 'flex';
 
       // Convert to image URL
-      const image = canvas.toDataURL('image/png');
-      setImageUrl(image);
+      setImageUrl(dataUrl);
 
       // Save receipt to database
       await handleSave();
-    } catch (err) {
-      setError(err.message || 'Failed to save image');
+
+      // Create download link
+      const receiptName = `receipt-${receipt.id || 'new'}.png`;
+      const link = document.createElement('a');
+      link.download = receiptName;
+      link.href = dataUrl;
+      link.click();
+
+      // toast.success('Receipt exported successfully!');
+    } catch (error) {
+      console.error('Export error:', error);
+      setError(`Failed to export receipt: ${error.message}`);
+      // toast.error('Failed to export receipt');
     } finally {
       setIsLoading(false);
     }
@@ -285,12 +396,12 @@ export default function ReceiptEditor({ receipt, isNewReceipt = false }) {
       <div ref={receiptRef} className="bg-white shadow-md rounded-lg p-6 mb-6">
         <div className="text-2xl font-bold text-center mb-6 text-black">
           <div className="flex flex-row items-center justify-center">
-            <Image
+            <img
               src="/logo-splitbill.svg"
               alt="Logo"
               width={26}
               height={26}
-              priority
+              className="logo-image"
             />
             <p className="ml-2">Splitbill</p>
           </div>
@@ -363,12 +474,12 @@ export default function ReceiptEditor({ receipt, isNewReceipt = false }) {
               <h3 className="text-lg font-semibold mb-3">Payment Details</h3>
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
-                  <Image
+                  <img
                     src={`/logo/Logo_${receipt?.paymentMethod}.png`}
                     alt={receipt?.paymentMethod}
                     width={40}
                     height={40}
-                    className="mr-3"
+                    className="mr-3 payment-logo"
                   />
                   <div>
                     <p className="text-sm text-gray-500">Account Number</p>
@@ -427,8 +538,8 @@ export default function ReceiptEditor({ receipt, isNewReceipt = false }) {
                   <th className="text-right py-2 px-3">Price</th>
                   <th className="text-right py-2 px-3">Qty</th>
                   <th className="text-right py-2 px-3">Total</th>
-                  {splitMethod === 'custom' && people && people.length > 0 && (
-                    <th className="text-left py-2 px-3">Assigned To</th>
+                  {people && people.length > 0 && (
+                    <th className="text-left py-2 px-3">Who Must Pay</th>
                   )}
                 </tr>
               </thead>
@@ -451,40 +562,47 @@ export default function ReceiptEditor({ receipt, isNewReceipt = false }) {
                       {currencySymbol}
                       {formatNumberWithDots(item.price * item.quantity)}
                     </td>
-                    {splitMethod === 'custom' &&
-                      people &&
-                      people.length > 0 && (
-                        <td className="py-2 px-3">
-                          {item.assignedTo &&
+                    {people && people.length > 0 && (
+                      <td className="py-2 px-3">
+                        {splitMethod === 'evenly' ? (
+                          // For evenly split, show all participants
+                          <div className="flex flex-wrap gap-1">
+                            {people.map((person, idx) => (
+                              <span
+                                key={idx}
+                                className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full"
+                              >
+                                {person.name}
+                              </span>
+                            ))}
+                          </div>
+                        ) : // For custom split, show assigned people
+                        item.assignedTo &&
                           Array.isArray(item.assignedTo) &&
                           item.assignedTo.length > 0 ? (
-                            <div className="flex flex-wrap gap-1">
-                              {item.assignedTo.map((personId, idx) => (
-                                <span
-                                  key={idx}
-                                  className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full"
-                                >
-                                  {getPersonName(personId)}
-                                </span>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="text-gray-400 text-sm">
-                              Not assigned
-                            </span>
-                          )}
-                        </td>
-                      )}
+                          <div className="flex flex-wrap gap-1">
+                            {item.assignedTo.map((personId, idx) => (
+                              <span
+                                key={idx}
+                                className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full"
+                              >
+                                {getPersonName(personId)}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-sm">
+                            Not assigned
+                          </span>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {items.length === 0 && (
                   <tr>
                     <td
-                      colSpan={
-                        splitMethod === 'custom' && people && people.length > 0
-                          ? '5'
-                          : '4'
-                      }
+                      colSpan={people && people.length > 0 ? '5' : '4'}
                       className="py-4 text-center text-gray-500"
                     >
                       No items in this receipt.
@@ -577,12 +695,15 @@ export default function ReceiptEditor({ receipt, isNewReceipt = false }) {
             viewBox="0 0 24 24"
             fill="currentColor"
           >
-            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+            <path
+              fillRule="evenodd"
+              d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"
+            />
           </svg>
           Share to WhatsApp
         </button>
         <button
-          onClick={saveAsImage}
+          onClick={exportAsImage}
           disabled={isLoading}
           className={`px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center ${
             isLoading ? 'opacity-50 cursor-not-allowed' : ''
@@ -600,7 +721,7 @@ export default function ReceiptEditor({ receipt, isNewReceipt = false }) {
               clipRule="evenodd"
             />
           </svg>
-          {isLoading ? 'Processing...' : 'Save as Image'}
+          {isLoading ? 'Processing...' : 'Export as Image'}
         </button>
       </div>
 

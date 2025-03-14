@@ -21,7 +21,7 @@ export default async function Page() {
           Tidak ingin Login ?
         </p>
         <Button className="w-full bg-primary text-white rounded-full hover:bg-primary-600 transition-colors duration-300">
-          <Link href="/dashboard">Continue as guests</Link>
+          <Link href="/dashboard">Continue as guest</Link>
         </Button>
       </div>
     </div>
