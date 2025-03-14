@@ -38,9 +38,16 @@ model Receipt {
   restaurant  String
   tax         Float       @default(0) 
   subtotal    Float       @default(0) 
+  splitMethod String?     @default("evenly")
+  participants Json?      // Store participants as JSON array
+  currency    String?     @default("USD")
+  paymentMethod String?   @default("Cash")
+  accountNumber String?
+  accountName String?
   createdAt   DateTime  @default(now())
   items       Item[]    @relation("ReceiptToItems")
   splitBills  SplitBill[]
+  people      ReceiptPerson[] 
 }
 
 model Item {
@@ -60,6 +67,19 @@ model Person {
   name      String
   email     String?
   createdAt DateTime  @default(now())
+  receipts  ReceiptPerson[] 
+}
+
+// Join table for Receipt and Person many-to-many relationship
+model ReceiptPerson {
+  id        String   @id @default(cuid())
+  receiptId String
+  receipt   Receipt  @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  personId  String
+  person    Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  
+  // Make the combination of receiptId and personId unique
+  @@unique([receiptId, personId])
 }
 
 model SplitBill {

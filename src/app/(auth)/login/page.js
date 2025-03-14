@@ -1,8 +1,17 @@
 import { Button } from '@heroui/react';
 import Link from 'next/link';
 import { OauthButton } from '../_components/oauth';
+import { auth } from '@/libs/auth';
+import { redirect } from 'next/navigation';
 
-export default function Page() {
+export default async function Page() {
+  const session = await auth();
+
+  // If already logged in, redirect to dashboard
+  if (session?.user) {
+    redirect('/dashboard');
+  }
+
   return (
     <div className="flex justify-center items-center h-screen">
       <div className="flex flex-col w-[400px] space-y-5 items-center border border-slate-200 rounded-xl px-5 py-12 shadow-md">
@@ -12,7 +21,7 @@ export default function Page() {
           Tidak ingin Login ?
         </p>
         <Button className="w-full bg-primary text-white rounded-full hover:bg-primary-600 transition-colors duration-300">
-          <Link href="/dashboard">Continue as guests</Link>
+          <Link href="/dashboard">Continue as guest</Link>
         </Button>
       </div>
     </div>
