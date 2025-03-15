@@ -1,36 +1,136 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# SplitBill
+
+![SplitBill Logo](/public/logo-splitbill.svg)
+
+## Overview
+
+SplitBill is a modern web application designed to simplify the process of splitting bills among friends, colleagues, or family members. With an intuitive interface and powerful features, SplitBill makes it easy to scan receipts, automatically extract items, split costs, and share the results with others.
+
+## Key Features
+
+### Receipt Management
+
+- **Upload & Scan**: Easily upload receipt images or scan them directly
+- **AI-Powered Recognition**: Automatically extracts items, prices, and restaurant details
+- **Manual Editing**: Ability to manually adjust items and prices if needed
+
+### Bill Splitting
+
+- **Smart Splitting**: Divide bills evenly or by specific items
+- **Item Assignment**: Assign items to specific people
+- **Tax & Tip Calculation**: Automatically handle tax and tip calculations
+
+### Sharing & Exporting
+
+- **Receipt Viewer**: View detailed bill information in a clean, organized format
+- **Export as Image**: Save receipts as images for easy sharing
+- **WhatsApp Integration**: Share bill splits directly via WhatsApp
+- **Receipt History**: Access all your past receipts and splits
+
+### User Experience
+
+- **Guest Mode**: Use the app without creating an account
+- **OAuth Authentication**: Quick sign-in with your existing accounts
+- **Responsive Design**: Works seamlessly on mobile, tablet, and desktop devices
+
+## Technology Stack
+
+- **Frontend**: Next.js 15, React 19, TailwindCSS
+- **Backend**: Next.js API Routes, Prisma ORM
+- **Authentication**: OAuth via Arctic
+- **Storage**: AWS S3 for image storage
+- **UI Components**: HeadlessUI, HeroUI, Framer Motion
+- **Database**: Prisma
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
+
+- Node.js 18.0 or higher
+- npm or yarn package manager
+- Database setup (compatible with Prisma)
+
+### Installation
+
+1. Clone the repository:
+
+```bash
+git clone https://github.com/yourusername/splitbill.git
+cd splitbill
+```
+
+2. Install dependencies:
+
+```bash
+npm install
+# or
+yarn install
+```
+
+3. Set up environment variables:
+   Create a `.env` file in the root directory with the following variables:
+
+```
+DATABASE_URL=your_database_connection_string
+NEXTAUTH_SECRET=your_nextauth_secret
+NEXTAUTH_URL=localhost_or_your_domain
+AWS_ACCESS_KEY_ID=your_aws_access_key
+AWS_SECRET_ACCESS_KEY=your_aws_secret_key
+AWS_REGION=your_aws_region
+AWS_BUCKET_NAME=your_s3_bucket_name
+```
+
+4. Run database migrations:
+
+```bash
+npm run db:migrate
+# or
+yarn db:migrate
+```
+
+5. Start the development server:
 
 ```bash
 npm run dev
 # or
 yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+6. Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## Usage Flow
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. **Login or Continue as Guest**: Access the app with or without an account
+2. **Upload a Receipt**: Take a photo or upload an image of your receipt
+3. **Review & Edit**: Verify the extracted items and make any necessary adjustments
+4. **Split the Bill**: Assign items to different people or split evenly
+5. **Share Results**: Export the split as an image or share directly via WhatsApp
 
-## Learn More
+## Development
 
-To learn more about Next.js, take a look at the following resources:
+### Available Scripts
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `npm run dev` - Start the development server
+- `npm run build` - Build the application for production
+- `npm run start` - Start the production server
+- `npm run lint` - Run ESLint to check code quality
+- `npm run db:migrate` - Apply database migrations
+- `npm run db:studio` - Open Prisma Studio to view and edit data
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Contributing
 
-## Deploy on Vercel
+We welcome contributions to SplitBill! Please feel free to submit issues or pull requests.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Acknowledgements
+
+- Our team for their valuable effort and enthusiasm
