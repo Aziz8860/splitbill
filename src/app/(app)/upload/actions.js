@@ -11,10 +11,9 @@ export async function uploadReceiptAction(formData) {
   try {
     // Check user authentication
     const session = await auth();
-    if (!session?.user) {
-      return { error: 'You must be logged in to upload receipts' };
-    }
-
+    // We'll handle both logged-in and guest users
+    const isGuest = !session?.user;
+    
     // Get file from form data
     const file = formData.get('file');
     if (!file) {
@@ -26,15 +25,29 @@ export async function uploadReceiptAction(formData) {
     const fileExt = file.type.split('/')[1] || 'jpg';
     const fileName = `receipt-${timestamp}.${fileExt}`;
 
-    // Upload file to R2
-    await uploadFile({
-      key: fileName,
-      folder: session.user.id,
-      body: file,
-    });
-
-    // Get the public URL of the uploaded file
-    const publicUrl = `${process.env.R2_DEV_URL}/${session.user.id}/${fileName}`;
+    let publicUrl;
+    
+    if (isGuest) {
+      // For guest users, use a temporary folder
+      await uploadFile({
+        key: fileName,
+        folder: `guest-${timestamp}`,
+        body: file,
+      });
+      
+      // Get the public URL of the uploaded file for guests
+      publicUrl = `${process.env.R2_DEV_URL}/guest-${timestamp}/${fileName}`;
+    } else {
+      // For logged in users, use their ID as the folder
+      await uploadFile({
+        key: fileName,
+        folder: session.user.id,
+        body: file,
+      });
+      
+      // Get the public URL of the uploaded file
+      publicUrl = `${process.env.R2_DEV_URL}/${session.user.id}/${fileName}`;
+    }
 
     // Process the receipt with LlamaParse (using LVM and Gemini model)
     const receiptData = await parseReceipt(publicUrl);
@@ -88,6 +101,7 @@ export async function uploadReceiptAction(formData) {
       success: true,
       parsedData: formattedData,
       imageUrl: publicUrl,
+      isGuest: isGuest,
     };
   } catch (error) {
     console.error('Receipt upload error:', error);
@@ -104,9 +118,8 @@ export async function saveManualReceiptAction(data) {
   try {
     // Check user authentication
     const session = await auth();
-    if (!session?.user) {
-      return { error: 'You must be logged in to create receipts' };
-    }
+    // Allow non-logged in users to proceed
+    // Instead of returning an error, we'll continue with a null userId for guests
 
     // Validate the input data
     if (!data.restaurant || !data.date) {
@@ -123,96 +136,110 @@ export async function saveManualReceiptAction(data) {
     const peopleMap = {};
 
     if (Array.isArray(data.people)) {
-      // Create people records if they don't exist
-      for (const personData of data.people) {
-        if (personData.name) {
-          let person = await prisma.person.findFirst({
-            where: {
-              userId: session.user.id,
-              name: personData.name,
-            },
-          });
-
-          // Create if not exists
-          if (!person) {
-            person = await prisma.person.create({
-              data: {
+      // Create people records if they don't exist - only for logged in users
+      if (session?.user) {
+        for (const personData of data.people) {
+          if (personData.name) {
+            let person = await prisma.person.findFirst({
+              where: {
                 userId: session.user.id,
                 name: personData.name,
               },
             });
-          }
 
-          // Map the index to the ID
-          peopleMap[data.people.indexOf(personData)] = person.id;
+            // Create if not exists
+            if (!person) {
+              person = await prisma.person.create({
+                data: {
+                  userId: session.user.id,
+                  name: personData.name,
+                },
+              });
+            }
+
+            // Map the index to the ID
+            peopleMap[data.people.indexOf(personData)] = person.id;
+          }
         }
+      } else {
+        // For guest users, create temporary person IDs
+        data.people.forEach((person, index) => {
+          if (person.name) {
+            // Create a temporary ID format for guests
+            peopleMap[index] = `guest-${Date.now()}-${index}`;
+          }
+        });
       }
     }
 
+    // Prepare receipt data with conditional userId
+    const receiptData = {
+      // Only include userId if user is logged in
+      ...(session?.user?.id && { userId: session.user.id }),
+      image: data.imageUrl || null,
+      totalAmount: parseFloat(data.totalAmount) || 0,
+      date: new Date(data.date) || new Date(),
+      restaurant: data.restaurant || 'Unknown Restaurant',
+      tax: parseFloat(data.tax) || 0,
+      subtotal: parseFloat(data.subtotal) || 0,
+      splitMethod: data.splitMethod || 'evenly',
+      currency: data.currency || 'USD',
+      paymentMethod: data.paymentMethod || 'Cash',
+      accountNumber: data.accountNumber || null,
+      accountName: data.accountName || null,
+      // Store participants as JSON
+      participants: data.people && data.people.length > 0 ? 
+        JSON.stringify(data.people.map((person, index) => ({ 
+          id: peopleMap[index], 
+          name: person.name 
+        }))) : 
+        null,
+      items: {
+        create: (data.items || []).map((item) => {
+          // Process assignedTo for custom split or evenly split
+          let assignedTo = null;
+
+          if (
+            data.splitMethod === 'custom' &&
+            item.assignedTo &&
+            Array.isArray(item.assignedTo)
+          ) {
+            // Convert index-based assignments to ID-based assignments
+            assignedTo = item.assignedTo
+              .map((idx) => peopleMap[idx])
+              .filter((id) => id);
+
+            // Store as JSON
+            if (assignedTo.length > 0) {
+              assignedTo = JSON.stringify(assignedTo);
+            } else {
+              assignedTo = null;
+            }
+          } else if (
+            data.splitMethod === 'evenly' &&
+            data.people &&
+            data.people.length > 0
+          ) {
+            // For evenly split, assign all people to each item
+            const allPeopleIds = Object.values(peopleMap).filter((id) => id);
+            if (allPeopleIds.length > 0) {
+              assignedTo = JSON.stringify(allPeopleIds);
+            }
+          }
+
+          return {
+            name: item.name || 'Unknown Item',
+            price: parseFloat(item.price) || 0,
+            quantity: parseInt(item.quantity) || 1,
+            assignedTo,
+          };
+        }),
+      },
+    };
+
     // Create receipt and items in the database
     const receipt = await prisma.receipt.create({
-      data: {
-        userId: session.user.id,
-        image: data.imageUrl || null,
-        totalAmount: parseFloat(data.totalAmount) || 0,
-        date: new Date(data.date) || new Date(),
-        restaurant: data.restaurant || 'Unknown Restaurant',
-        tax: parseFloat(data.tax) || 0,
-        subtotal: parseFloat(data.subtotal) || 0,
-        splitMethod: data.splitMethod || 'evenly',
-        currency: data.currency || 'USD',
-        paymentMethod: data.paymentMethod || 'Cash',
-        accountNumber: data.accountNumber || null,
-        accountName: data.accountName || null,
-        // Store participants as JSON
-        participants: data.people && data.people.length > 0 ? 
-          JSON.stringify(data.people.map((person, index) => ({ 
-            id: peopleMap[index], 
-            name: person.name 
-          }))) : 
-          null,
-        items: {
-          create: (data.items || []).map((item) => {
-            // Process assignedTo for custom split or evenly split
-            let assignedTo = null;
-
-            if (
-              data.splitMethod === 'custom' &&
-              item.assignedTo &&
-              Array.isArray(item.assignedTo)
-            ) {
-              // Convert index-based assignments to ID-based assignments
-              assignedTo = item.assignedTo
-                .map((idx) => peopleMap[idx])
-                .filter((id) => id);
-
-              // Store as JSON
-              if (assignedTo.length > 0) {
-                assignedTo = JSON.stringify(assignedTo);
-              } else {
-                assignedTo = null;
-              }
-            } else if (
-              data.splitMethod === 'evenly' &&
-              data.people &&
-              data.people.length > 0
-            ) {
-              // For evenly split, assign all people to each item
-              const allPeopleIds = Object.values(peopleMap).filter((id) => id);
-              if (allPeopleIds.length > 0) {
-                assignedTo = JSON.stringify(allPeopleIds);
-              }
-            }
-
-            return {
-              name: item.name || 'Unknown Item',
-              price: parseFloat(item.price) || 0,
-              quantity: parseInt(item.quantity) || 1,
-              assignedTo,
-            };
-          }),
-        },
-      },
+      data: receiptData,
       include: {
         items: true,
       },
@@ -241,7 +268,7 @@ export async function saveManualReceiptAction(data) {
     console.error('Manual receipt error:', error);
     return {
       error: error.message || 'Failed to save receipt',
-      stack: error.stack,
+      stack: error.stack
     };
   }
 }

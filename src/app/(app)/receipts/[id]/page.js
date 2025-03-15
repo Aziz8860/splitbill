@@ -9,10 +9,11 @@ import { format } from "date-fns";
 export default async function ReceiptDetailPage({ params }) {
   const session = await auth();
   
-  // Redirect to login if not authenticated
-  if (!session?.user) {
-    redirect("/login");
-  }
+  // No longer redirect to login if not authenticated
+  // Allow guest users to view receipts as well
+  // if (!session?.user) {
+  //   redirect("/login");
+  // }
   
   const receipt = await prisma.receipt.findUnique({
     where: { id: params.id },
@@ -22,8 +23,13 @@ export default async function ReceiptDetailPage({ params }) {
     },
   });
   
-  // Check if receipt exists and belongs to the current user
-  if (!receipt || receipt.userId !== session.user.id) {
+  // Check if receipt exists
+  if (!receipt) {
+    redirect("/dashboard");
+  }
+  
+  // Only check if receipt belongs to user if it's a user-owned receipt and the user is logged in
+  if (receipt.userId && session?.user?.id && receipt.userId !== session.user.id) {
     redirect("/dashboard");
   }
   
@@ -86,17 +92,24 @@ export default async function ReceiptDetailPage({ params }) {
       {/* Action buttons */}
       <div className="mt-6 flex space-x-4">
         <Link
-          href={`/receipts/${receipt.id}/split`}
+          href={`/receipts/${receipt.id}/review`}
           className="flex-1 py-2 px-4 bg-blue-600 text-white text-center rounded-md hover:bg-blue-700"
+        >
+          Edit Receipt
+        </Link>
+        
+        <Link
+          href={`/receipts/${receipt.id}/split`}
+          className="flex-1 py-2 px-4 bg-green-600 text-white text-center rounded-md hover:bg-green-700"
         >
           Split This Bill
         </Link>
         
         <Link
-          href="/dashboard"
+          href="/"
           className="py-2 px-4 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
         >
-          Back to Dashboard
+          Back to Home
         </Link>
       </div>
     </div>
