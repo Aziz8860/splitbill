@@ -40,8 +40,12 @@ export async function updateReceiptItems(data) {
     }
 
     // Only check ownership if this is a user-owned receipt and the session user is trying to edit someone else's receipt
-    if (currentReceipt.userId && session?.user?.id && currentReceipt.userId !== session.user.id) {
-      return { error: "You don't have permission to modify this receipt" };
+    if (
+      currentReceipt.userId &&
+      session?.user?.id &&
+      currentReceipt.userId !== session.user.id
+    ) {
+      return { error: 'Kamu tidak punya akses untuk modifikasi receipt ini' };
     }
 
     // Update receipt and items
@@ -87,7 +91,7 @@ export async function updateReceiptItems(data) {
     revalidatePath('/dashboard');
     return { success: true, receipt: updatedReceipt };
   } catch (error) {
-    console.error('Receipt update error:', error);
-    return { error: error.message || 'Failed to update receipt' };
+    console.error('Update receipt-nya error:', error);
+    return { error: error.message || 'Gagal update receipt' };
   }
 }
