@@ -13,11 +13,11 @@ export async function uploadReceiptAction(formData) {
     const session = await auth();
     // We'll handle both logged-in and guest users
     const isGuest = !session?.user;
-
+    
     // Get file from form data
     const file = formData.get('file');
     if (!file) {
-      return { error: 'File tidak ditemukan' };
+      return { error: 'No file provided' };
     }
 
     // Generate a unique filename
@@ -26,7 +26,7 @@ export async function uploadReceiptAction(formData) {
     const fileName = `receipt-${timestamp}.${fileExt}`;
 
     let publicUrl;
-
+    
     if (isGuest) {
       // For guest users, use a temporary folder
       await uploadFile({
@@ -34,7 +34,7 @@ export async function uploadReceiptAction(formData) {
         folder: `guest-${timestamp}`,
         body: file,
       });
-
+      
       // Get the public URL of the uploaded file for guests
       publicUrl = `${process.env.R2_DEV_URL}/guest-${timestamp}/${fileName}`;
     } else {
@@ -44,7 +44,7 @@ export async function uploadReceiptAction(formData) {
         folder: session.user.id,
         body: file,
       });
-
+      
       // Get the public URL of the uploaded file
       publicUrl = `${process.env.R2_DEV_URL}/${session.user.id}/${fileName}`;
     }
@@ -55,7 +55,7 @@ export async function uploadReceiptAction(formData) {
     // Validate the parsed data
     if (!receiptData || typeof receiptData !== 'object') {
       return {
-        error: 'Data tidak valid. Layanan parsing receipt gagal',
+        error: 'Invalid data returned from receipt parsing service',
         debug: { receiptData },
       };
     }
@@ -104,9 +104,9 @@ export async function uploadReceiptAction(formData) {
       isGuest: isGuest,
     };
   } catch (error) {
-    console.error('Upload receipt gagal:', error);
+    console.error('Receipt upload error:', error);
     return {
-      error: error.message || 'Gagal meng-upload dan memproses receipt',
+      error: error.message || 'Failed to upload and process receipt',
       stack: error.stack,
     };
   }
@@ -124,12 +124,12 @@ export async function saveManualReceiptAction(data) {
     // Validate the input data
     if (!data.restaurant || !data.date) {
       return {
-        error: 'Nama tempat tagihan dan tanggal harus diisi',
+        error: 'Missing required fields: restaurant name and date are required',
       };
     }
 
     if (!data.items || !Array.isArray(data.items) || data.items.length === 0) {
-      return { error: 'Setidaknya, tambahkan 1 barang atau item' };
+      return { error: 'At least one item is required' };
     }
 
     // For both split methods, process people
@@ -179,24 +179,21 @@ export async function saveManualReceiptAction(data) {
       image: data.imageUrl || null,
       totalAmount: parseFloat(data.totalAmount) || 0,
       date: new Date(data.date) || new Date(),
-      restaurant: data.restaurant || 'Tempat tidak diketahui',
+      restaurant: data.restaurant || 'Unknown Restaurant',
       tax: parseFloat(data.tax) || 0,
       subtotal: parseFloat(data.subtotal) || 0,
-      splitMethod: data.splitMethod || 'sama rata',
+      splitMethod: data.splitMethod || 'evenly',
       currency: data.currency || 'USD',
       paymentMethod: data.paymentMethod || 'Cash',
       accountNumber: data.accountNumber || null,
       accountName: data.accountName || null,
       // Store participants as JSON
-      participants:
-        data.people && data.people.length > 0
-          ? JSON.stringify(
-              data.people.map((person, index) => ({
-                id: peopleMap[index],
-                name: person.name,
-              }))
-            )
-          : null,
+      participants: data.people && data.people.length > 0 ? 
+        JSON.stringify(data.people.map((person, index) => ({ 
+          id: peopleMap[index], 
+          name: person.name 
+        }))) : 
+        null,
       items: {
         create: (data.items || []).map((item) => {
           // Process assignedTo for custom split or evenly split
@@ -219,7 +216,7 @@ export async function saveManualReceiptAction(data) {
               assignedTo = null;
             }
           } else if (
-            data.splitMethod === 'sama rata' &&
+            data.splitMethod === 'evenly' &&
             data.people &&
             data.people.length > 0
           ) {
@@ -231,7 +228,7 @@ export async function saveManualReceiptAction(data) {
           }
 
           return {
-            name: item.name || 'Barang tidak diketahui',
+            name: item.name || 'Unknown Item',
             price: parseFloat(item.price) || 0,
             quantity: parseInt(item.quantity) || 1,
             assignedTo,
@@ -248,7 +245,7 @@ export async function saveManualReceiptAction(data) {
       },
     });
 
-    console.log('Data orang sebelum menyimpan ke database:', data.people);
+    console.log('People data before saving to database:', data.people);
 
     // create a split bill for this receipt
     await prisma.splitBill.create({
@@ -270,8 +267,8 @@ export async function saveManualReceiptAction(data) {
   } catch (error) {
     console.error('Manual receipt error:', error);
     return {
-      error: error.message || 'Gagal menyimpan receipt',
-      stack: error.stack,
+      error: error.message || 'Failed to save receipt',
+      stack: error.stack
     };
   }
 }
