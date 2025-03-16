@@ -20,7 +20,8 @@ export default async function UploadPage() {
 
       <div className="bg-white shadow rounded-lg p-6">
         <p className="text-gray-600 mb-6">
-          Upload a receipt image or enter details manually to split the bill.
+          Upload gambar receipt atau masukkan rincian secara manual untuk bagi
+          bagi tagihannya.
         </p>
 
         <UploadForm />
