@@ -1,16 +1,9 @@
 // /src/app/(app)/upload/page.jsx
-import { auth } from '@/libs/auth';
 import { redirect } from 'next/navigation';
 import UploadForm from '@/components/receipts/UploadForm';
 import { Toaster } from 'react-hot-toast';
 
 export default async function UploadPage() {
-  // const session = await auth();
-
-  // // Redirect to login if not authenticated
-  // if (!session?.user) {
-  //   redirect("/login");
-  // }
 
   return (
     <div className="max-w-md mx-auto p-4">
