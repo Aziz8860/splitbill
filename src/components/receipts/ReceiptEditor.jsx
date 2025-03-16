@@ -673,7 +673,7 @@ export default function ReceiptEditor({ receipt, isNewReceipt = false }) {
           <div className="text-sm text-gray-500 mt-2 text-center">
             &copy; Bill splited by splitbill
             <br />
-            https://splitbill-beryl.vercel.app/
+            https://splitbill-praktis.vercel.app/
           </div>
         </div>
       </div>
