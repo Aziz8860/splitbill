@@ -19,12 +19,12 @@ export default function SharedBillPage() {
         const data = await response.json();
 
         if (!response.ok) {
-          throw new Error(data.error || 'Gagal memuat gambar yang dibagikan');
+          throw new Error(data.error || 'Failed to load shared image');
         }
 
         setImageData(data.imageData);
       } catch (error) {
-        console.error('Gagal memuat gambar yang dibagikan:', error);
+        console.error('Error fetching shared image:', error);
         setError(error.message);
       } finally {
         setLoading(false);
@@ -40,7 +40,7 @@ export default function SharedBillPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-4">
         <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-        <p className="mt-4 text-lg">Memuat tagihan yang dibagikan...</p>
+        <p className="mt-4 text-lg">Loading shared bill...</p>
       </div>
     );
   }
@@ -51,17 +51,15 @@ export default function SharedBillPage() {
         <div className="max-w-md w-full p-6 bg-white border border-gray-200 rounded-lg shadow-md text-center">
           <Clock className="w-16 h-16 mx-auto text-red-500 mb-4" />
           <h1 className="text-2xl font-bold text-gray-800 mb-2">
-            {error === 'Gambar yang dibagikan sudah kedaluwarsa'
-              ? 'Link sudah kedaluwarsa'
-              : 'Error'}
+            {error === 'Shared image has expired' ? 'Link Expired' : 'Error'}
           </h1>
           <p className="text-gray-600 mb-6">
-            {error === 'Gambar yang dibagikan sudah kedaluwarsa'
-              ? 'Tagihan yang dibagikan hanya tersedia selama 24 jam.'
+            {error === 'Shared image has expired'
+              ? 'This shared bill has expired. Shared bills are only available for 24 hours.'
               : error}
           </p>
           <Button className="bg-indigo-600 text-white">
-            <Link href="/">Kembali ke Beranda</Link>
+            <Link href="/">Return to Home</Link>
           </Button>
         </div>
       </div>
@@ -74,14 +72,14 @@ export default function SharedBillPage() {
         <div className="bg-white border border-gray-200 rounded-lg shadow-md overflow-hidden mb-4">
           <img
             src={imageData}
-            alt="Tagihan yang dibagikan"
+            alt="Shared Bill Summary"
             className="w-full h-auto"
           />
         </div>
 
         <div className="flex justify-between gap-4">
           <Button className="flex-1 bg-indigo-600 text-white">
-            <Link href="/">Ke Splitbill</Link>
+            <Link href="/">Go to SplitBill</Link>
           </Button>
 
           <Button
@@ -93,12 +91,12 @@ export default function SharedBillPage() {
             }}
             className="flex-1 bg-green-600 text-white"
           >
-            Share ke WhatsApp
+            Share to WhatsApp
           </Button>
         </div>
 
         <p className="text-center text-sm text-gray-500 mt-4">
-          Tagihan yang dibagikan akan kedaluwarsa dalam 24 jam dari pembuatan.
+          This shared bill will expire in 24 hours from creation.
         </p>
       </div>
     </div>
