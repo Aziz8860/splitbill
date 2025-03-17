@@ -12,6 +12,7 @@ import {
   TrashIcon,
 } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
+import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button } from '@heroui/react';
 import { toast } from 'react-hot-toast';
 
 export default function UploadForm() {
@@ -38,7 +39,34 @@ export default function UploadForm() {
   const fileInputRef = useRef(null);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const router = useRouter();
+
+  const handleModalClose = () => setIsModalOpen(false);
+  const handleBackToDashboard = () => {
+    setIsModalOpen(false);
+    router.push('/dashboard');
+  };
+
+
+  // Add this to your component
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => {
+      setIsOnline(false);
+      toast.error('Your device is offline. Please check your connection.');
+    };
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const isMobile =
     typeof navigator !== 'undefined' &&
@@ -137,9 +165,12 @@ export default function UploadForm() {
 
     // Calculate totals
     const newTotalAmount = calculateTotalFromItems(newItems);
-    const newSubtotal = data.subtotal || newTotalAmount || 0;
+    const newSubtotal = parseFloat(data.subtotal || 0);
+    const newTax = parseFloat(data.tax || 0);
 
-    const newTax = data.tax || receiptData.tax || 0 || 0;
+    // Check if dealing with a valid receipt or a non-receipt image
+    const isValidReceipt = newSubtotal > 0 || newTax > 0 || data.items?.length > 0;
+
 
     // Update the receipt data state with empty people array if not exists
     setReceiptData({
@@ -148,10 +179,13 @@ export default function UploadForm() {
         ? new Date(data.date).toISOString().split('T')[0]
         : receiptData.date,
       totalAmount: newTotalAmount.toString(),
-      tax: (parseFloat(receiptData.tax) + newTax).toString(),
-      subtotal: (
-        parseFloat(receiptData.subtotal || 0) + newSubtotal
-      ).toString(),
+      // Use conditional logic to update tax and subtotal
+      tax: isValidReceipt 
+        ? (parseFloat(receiptData.tax || 0) + newTax).toString() 
+        : receiptData.tax,
+      subtotal: isValidReceipt 
+        ? (parseFloat(receiptData.subtotal || 0) + newSubtotal).toString() 
+        : receiptData.subtotal,
       items: newItems,
       splitMethod: receiptData.splitMethod, // Keep current split method
       imageUrl: imageUrls[0] || null,
@@ -175,43 +209,136 @@ export default function UploadForm() {
     }, 0);
   };
 
-  async function handleFileUpload(file) {
-    setIsUploading(true);
-    setProcessingStage('Uploading receipt...');
+// In handleFileUpload function
+async function handleFileUpload(file) {
+  setIsUploading(true);
+  setProcessingStage('Preparing receipt...');
+  
+  let loadingToast = null;
+  
+  try {
+    // Compress the image before uploading if it's too large
+    const compressedFile = await compressImage(file);
+    
+    const formData = new FormData();
+    formData.append('file', compressedFile);
 
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
+    loadingToast = toast.loading('Processing your receipt...');
+    
+    // Add more detailed progress updates
+    const progressUpdates = [
+      'Uploading receipt...',
+      'Analyzing receipt with AI...',
+      'Extracting data...',
+      'Finalizing...'
+    ];
+    
+    // Use clearable timeouts so we can cancel them if there's an error
+    const updateTimeouts = [];
+    
+    progressUpdates.forEach((message, index) => {
+      const timeout = setTimeout(() => setProcessingStage(message), index * 3000);
+      updateTimeouts.push(timeout);
+    });
 
-      const loadingToast = toast.loading('Processing your receipt...');
+    // Add a timeout promise to handle slow connections
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Upload timed out - please try again with a stronger connection')), 30000)
+    );
+    
+    // Race between the actual upload and the timeout
+    const result = await Promise.race([
+      uploadReceiptAction(formData),
+      timeoutPromise
+    ]);
 
-      setTimeout(
-        () => setProcessingStage('Analyzing receipt with AI...'),
-        2000
-      );
+    // Clear all the progress update timeouts
+    updateTimeouts.forEach(clearTimeout);
 
-      const result = await uploadReceiptAction(formData);
-
-      toast.dismiss(loadingToast);
-
-      if (result.error) {
-        toast.error(result.error);
-      } else {
-        toast.success('Receipt processed successfully!');
-
-        // Update the form with the parsed data
-        if (result.parsedData) {
-          updateFormWithParsedData(result.parsedData, result.imageUrl);
+    if (result.error) {
+      console.error('Upload error:', result.error);
+      toast.error("Failed to process receipt. Please try again.");
+    } else {
+      // Update the form with the parsed data
+      if (result.parsedData) {
+        // Check if this is a valid receipt before showing success message
+        const parsedData = result.parsedData;
+        const newSubtotal = parseFloat(parsedData.subtotal || 0);
+        const newTax = parseFloat(parsedData.tax || 0);
+        const isValidReceipt = newSubtotal > 0 || newTax > 0 || parsedData.items?.length > 0;
+        
+        if (isValidReceipt) {
+          toast.success('Receipt processed successfully!');
+        } else {
+          toast.error('Please upload a clear image of a receipt. No receipt data was detected in this image.');
         }
+        
+        updateFormWithParsedData(result.parsedData, result.imageUrl);
+      } else {
+        toast.error('Please upload a clear image of a receipt. No receipt data was detected.');
       }
-    } catch (error) {
-      console.error('Upload error:', error);
-      toast.error('Failed to process receipt');
-    } finally {
-      setIsUploading(false);
-      setProcessingStage(null);
     }
+  } catch (error) {
+    console.error('Upload error:', error);
+    toast.error('Failed to process receipt. Please try again.');
+  } finally {
+    // Only dismiss the loading toast if it exists
+    if (loadingToast) {
+      toast.dismiss(loadingToast);
+    }
+    
+    setIsUploading(false);
+    setProcessingStage(null);
   }
+}
+
+// Add this function to compress images before upload
+function compressImage(file) {
+  return new Promise((resolve) => {
+    // If file is small enough, don't compress
+    if (file.size <= 1024 * 1024) {
+      resolve(file);
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        // Calculate new dimensions - target ~1MB file size
+        let width = img.width;
+        let height = img.height;
+        
+        // Maintain aspect ratio while reducing size
+        const maxSize = 1200;
+        if (width > height && width > maxSize) {
+          height = Math.round((height * maxSize) / width);
+          width = maxSize;
+        } else if (height > maxSize) {
+          width = Math.round((width * maxSize) / height);
+          height = maxSize;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Convert to blob with reduced quality
+        canvas.toBlob((blob) => {
+          resolve(new File([blob], file.name, {
+            type: 'image/jpeg',
+            lastModified: new Date().getTime()
+          }));
+        }, 'image/jpeg', 0.7); // Adjust quality as needed
+      };
+    };
+  });
+}
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -258,7 +385,8 @@ export default function UploadForm() {
       const result = await saveManualReceiptAction(formattedData);
 
       if (result.error) {
-        toast.error(result.error);
+        console.error('Result Form submission error:', error);
+        toast.error('Failed to save receipt, please try again');
       } else {
         toast.success('Receipt saved successfully!');
         if (result.redirectUrl) {
@@ -269,7 +397,7 @@ export default function UploadForm() {
       }
     } catch (error) {
       console.error('Form submission error:', error);
-      toast.error('Failed to save receipt');
+      toast.error('Failed to save receipt, please try again');
     } finally {
       setIsUploading(false);
     }
@@ -319,31 +447,45 @@ export default function UploadForm() {
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-
+      
+      // Ensure the canvas size matches the video
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-
+      
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
+      
+      // Show a loading indicator immediately
+      setProcessingStage('Processing camera capture...');
+      
+      // Use a lower quality for the camera capture
       canvas.toBlob(
         async (blob) => {
           if (blob) {
             const file = new File([blob], 'receipt.jpg', {
               type: 'image/jpeg',
             });
-
+            
             // Add the preview URL
             const url = URL.createObjectURL(file);
             setPreviewUrls((prev) => [...prev, url]);
-
-            stopCamera();
-            handleFileUpload(file);
+            
+            // Allow UI to update before processing
+            setTimeout(() => {
+              stopCamera();
+              handleFileUpload(file);
+            }, 500);
+          } else {
+            toast.error('Failed to capture image. Please try again.');
+            setIsUploading(false);
+            setProcessingStage(null);
           }
         },
         'image/jpeg',
-        0.95
+        0.7 // Lower quality for faster upload
       );
+    } else {
+      toast.error('Camera not available');
     }
   };
 
@@ -492,6 +634,7 @@ export default function UploadForm() {
   };
 
   return (
+    <>
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Hidden file input */}
       <input
@@ -1008,15 +1151,45 @@ export default function UploadForm() {
           </div>
         </div>
 
-        {/* Submit button */}
-        <button
-          type="submit"
-          disabled={isUploading || !receiptData.restaurant}
-          className="w-full py-2 px-4 bg-primary border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 transition-colors duration-300"
-        >
-          {isUploading ? 'Saving...' : 'Save Receipt'}
-        </button>
+        {/* Navigation buttons */}
+        <div className="flex justify-between items-center mt-6 mb-4">
+          <Button
+            onClick={() => setIsModalOpen(true)}
+            variant="outlined"
+            className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-300"
+          >
+            Back to Dashboard
+          </Button>
+
+          <Button
+            type="submit"
+            disabled={isUploading || !receiptData.restaurant}
+            className="px-4 py-2 bg-primary border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 transition-colors duration-300"
+          >
+            {isUploading ? 'Saving...' : 'Save Receipt'}
+          </Button>
+        </div>
       </div>
     </form>
+    {/* Confirmation Modal */}
+    <Modal isOpen={isModalOpen} onClose={handleModalClose} isDismissable={false}>
+    <ModalContent>
+      <ModalHeader>
+        Confirm Navigation
+      </ModalHeader>
+      <ModalBody>
+        Are you sure you want to go back to the dashboard? All unsaved changes will be lost.
+      </ModalBody>
+      <ModalFooter>
+        <Button variant="ghost" onClick={handleModalClose}>
+          Cancel
+        </Button>
+        <Button variant="solid" color="danger" onClick={handleBackToDashboard}>
+          Confirm
+        </Button>
+      </ModalFooter>
+    </ModalContent>
+  </Modal>
+  </>
   );
 }
