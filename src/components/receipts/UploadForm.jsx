@@ -177,16 +177,16 @@ export default function UploadForm() {
 
   async function handleFileUpload(file) {
     setIsUploading(true);
-    setProcessingStage('Uploading receipt...');
+    setProcessingStage('Memproses receipt...');
 
     try {
       const formData = new FormData();
       formData.append('file', file);
 
-      const loadingToast = toast.loading('Processing your receipt...');
+      const loadingToast = toast.loading('Memproses receipt...');
 
       setTimeout(
-        () => setProcessingStage('Analyzing receipt with AI...'),
+        () => setProcessingStage('Memproses receipt dengan AI...'),
         2000
       );
 
@@ -197,7 +197,7 @@ export default function UploadForm() {
       if (result.error) {
         toast.error(result.error);
       } else {
-        toast.success('Receipt processed successfully!');
+        toast.success('Receipt berhasil diproses!');
 
         // Update the form with the parsed data
         if (result.parsedData) {
@@ -206,7 +206,7 @@ export default function UploadForm() {
       }
     } catch (error) {
       console.error('Upload error:', error);
-      toast.error('Failed to process receipt');
+      toast.error('Gagal memproses receipt');
     } finally {
       setIsUploading(false);
       setProcessingStage(null);
@@ -260,7 +260,7 @@ export default function UploadForm() {
       if (result.error) {
         toast.error(result.error);
       } else {
-        toast.success('Receipt saved successfully!');
+        toast.success('Receipt berhasil disimpan!');
         if (result.redirectUrl) {
           router.push(result.redirectUrl);
         } else {
@@ -269,7 +269,7 @@ export default function UploadForm() {
       }
     } catch (error) {
       console.error('Form submission error:', error);
-      toast.error('Failed to save receipt');
+      toast.error('Gagal menyimpan receipt');
     } finally {
       setIsUploading(false);
     }
@@ -300,8 +300,8 @@ export default function UploadForm() {
         videoRef.current.srcObject = stream;
       }
     } catch (error) {
-      console.error('Error accessing camera:', error);
-      toast.error('Could not access camera');
+      console.error('Error mengakses kamera:', error);
+      toast.error('Tidak dapat mengakses kamera');
       setUsingCamera(false);
     }
   };
@@ -590,7 +590,8 @@ export default function UploadForm() {
             <span className="font-medium">{processingStage}</span>
           </div>
           <p className="text-sm mt-2">
-            This may take up to 15-20 seconds. Please don't close this window.
+            Proses ini mungkin memakan waktu 15-20 detik. Jangan tutup jendela
+            ini.
           </p>
         </div>
       )}
@@ -633,7 +634,7 @@ export default function UploadForm() {
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Restaurant Name
+              Nama Tempat/Restaurant
             </label>
             <input
               type="text"
@@ -648,7 +649,7 @@ export default function UploadForm() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Date
+              Tanggal
             </label>
             <input
               type="date"
@@ -680,7 +681,7 @@ export default function UploadForm() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                Tax
+                Pajak
               </label>
               <input
                 type="number"
@@ -696,7 +697,7 @@ export default function UploadForm() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                Total Amount
+                Total Tagihan
               </label>
               <input
                 type="number"
@@ -716,7 +717,7 @@ export default function UploadForm() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Currency
+              Mata Uang
             </label>
             <select
               value={receiptData.currency}
@@ -739,7 +740,7 @@ export default function UploadForm() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Payment Method
+              Metode Pembayaran
             </label>
             <select
               value={receiptData.paymentMethod}
@@ -766,7 +767,7 @@ export default function UploadForm() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Account Number
+              Nomor Rekening
             </label>
             <input
               type="text"
@@ -783,7 +784,7 @@ export default function UploadForm() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Account Name
+              Nama Rekening
             </label>
             <input
               type="text"
@@ -797,7 +798,7 @@ export default function UploadForm() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Split Method
+              Metode Pembagian
             </label>
             <select
               value={receiptData.splitMethod}
@@ -809,14 +810,14 @@ export default function UploadForm() {
               }
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
             >
-              <option value="evenly">Split Evenly</option>
+              <option value="evenly">Split Sama Rata</option>
               <option value="custom">Custom Split</option>
             </select>
             {/* Show people section for both split methods */}
             <div className="space-y-2 mt-4">
               <div className="flex justify-between items-center">
                 <label className="block text-sm font-medium text-gray-700">
-                  People
+                  Partisipan
                 </label>
                 <button
                   type="button"
@@ -849,9 +850,11 @@ export default function UploadForm() {
                   </button>
                 </div>
               ))}
-              
+
               {receiptData.people.length === 0 && (
-                <p className="text-sm text-gray-500 italic">Add people to split the bill with</p>
+                <p className="text-sm text-gray-500 italic">
+                  Tambah orang untuk membagi tagihan
+                </p>
               )}
             </div>
           </div>
@@ -860,7 +863,7 @@ export default function UploadForm() {
           <div className="space-y-2">
             <div className="flex justify-between items-center">
               <label className="block text-sm font-medium text-gray-700">
-                Items
+                Barang/Item
               </label>
               <button
                 type="button"
@@ -876,7 +879,7 @@ export default function UploadForm() {
                 <div className="flex gap-2 items-end">
                   <div className="flex-1">
                     <label className="block text-xs text-gray-500">
-                      Item Name
+                      Nama Barang/Item
                     </label>
                     <input
                       type="text"
@@ -890,7 +893,7 @@ export default function UploadForm() {
                   </div>
 
                   <div className="w-20">
-                    <label className="block text-xs text-gray-500">Price</label>
+                    <label className="block text-xs text-gray-500">Harga</label>
                     <input
                       type="number"
                       step="0.01"
@@ -905,7 +908,7 @@ export default function UploadForm() {
 
                   <div className="w-20">
                     <label className="block text-xs text-gray-500">
-                      Quantity
+                      Jumlah
                     </label>
                     <input
                       type="number"
@@ -962,10 +965,12 @@ export default function UploadForm() {
                       </div>
                     ) : receiptData.people.length > 0 ? (
                       <div className="text-sm text-gray-500">
-                        <span className="font-medium">Split evenly among: </span>
+                        <span className="font-medium">
+                          Split sama rata ke:{' '}
+                        </span>
                         {receiptData.people
-                          .filter(person => person.name)
-                          .map(person => person.name)
+                          .filter((person) => person.name)
+                          .map((person) => person.name)
                           .join(', ')}
                       </div>
                     ) : null}
@@ -985,7 +990,7 @@ export default function UploadForm() {
               </span>
             </div>
             <div className="flex justify-between items-center mb-2">
-              <span>Tax:</span>
+              <span>Pajak:</span>
               <span>
                 {getCurrencySymbol(receiptData.currency)}
                 {formatNumberWithDots(receiptData.tax)}
@@ -1002,7 +1007,7 @@ export default function UploadForm() {
               parseFloat(receiptData.totalAmount) &&
               receiptData.totalAmount && (
                 <span className="text-yellow-600 ml-2">
-                  (Warning: Different from receipt total)
+                  (Peringatan: Total berbeda dari total receipt)
                 </span>
               )}
           </div>
@@ -1014,7 +1019,7 @@ export default function UploadForm() {
           disabled={isUploading || !receiptData.restaurant}
           className="w-full py-2 px-4 bg-primary border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 transition-colors duration-300"
         >
-          {isUploading ? 'Saving...' : 'Save Receipt'}
+          {isUploading ? 'Menyimpan...' : 'Simpan Receipt'}
         </button>
       </div>
     </form>
