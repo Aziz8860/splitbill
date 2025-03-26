@@ -14,11 +14,11 @@ export async function uploadReceiptAction(formData) {
     const session = await auth();
     // We'll handle both logged-in and guest users
     const isGuest = !session?.user;
-    
+
     // Get file from form data
     const file = formData.get('file');
     if (!file) {
-      return { error: 'No file provided' };
+      return { error: 'File tidak ditemukan' };
     }
 
     // Generate a unique filename
@@ -27,7 +27,7 @@ export async function uploadReceiptAction(formData) {
     const fileName = `receipt-${timestamp}.${fileExt}`;
 
     let publicUrl;
-    
+
     if (isGuest) {
       // For guest users, use a temporary folder with randomness for security
       const randomString = Math.random().toString(36).substring(2, 10);
@@ -38,7 +38,7 @@ export async function uploadReceiptAction(formData) {
         folder: guestFolder,
         body: file,
       });
-      
+
       // Get the public URL of the uploaded file for guests
       publicUrl = `${process.env.R2_DEV_URL}/${guestFolder}/${fileName}`;
     } else {
@@ -48,7 +48,7 @@ export async function uploadReceiptAction(formData) {
         folder: session.user.id,
         body: file,
       });
-      
+
       // Get the public URL of the uploaded file
       publicUrl = `${process.env.R2_DEV_URL}/${session.user.id}/${fileName}`;
     }
@@ -59,7 +59,7 @@ export async function uploadReceiptAction(formData) {
     // Validate the parsed data
     if (!receiptData || typeof receiptData !== 'object') {
       return {
-        error: 'Invalid data returned from receipt parsing service',
+        error: 'Data tidak valid. Layanan parsing receipt gagal',
         debug: { receiptData },
       };
     }
@@ -108,9 +108,9 @@ export async function uploadReceiptAction(formData) {
       isGuest: isGuest,
     };
   } catch (error) {
-    console.error('Receipt upload error:', error);
+    console.error('Upload receipt gagal:', error);
     return {
-      error: error.message || 'Failed to upload and process receipt',
+      error: error.message || 'Gagal upload dan memproses receipt',
       stack: error.stack,
     };
   }
@@ -129,12 +129,12 @@ export async function saveManualReceiptAction(data) {
     // Validate the input data
     if (!data.restaurant || !data.date) {
       return {
-        error: 'Missing required fields: restaurant name and date are required',
+        error: 'Nama tempat tagihan dan tanggal harus diisi',
       };
     }
 
     if (!data.items || !Array.isArray(data.items) || data.items.length === 0) {
-      return { error: 'At least one item is required' };
+      return { error: 'Setidaknya, tambahkan 1 barang atau item' };
     }
 
     // For both split methods, process people
@@ -232,12 +232,15 @@ export async function saveManualReceiptAction(data) {
       accountNumber: data.accountNumber || null,
       accountName: data.accountName || null,
       // Store participants as JSON
-      participants: data.people && data.people.length > 0 ? 
-        JSON.stringify(data.people.map((person, index) => ({ 
-          id: peopleMap[index], 
-          name: person.name 
-        }))) : 
-        null,
+      participants:
+        data.people && data.people.length > 0
+          ? JSON.stringify(
+              data.people.map((person, index) => ({
+                id: peopleMap[index],
+                name: person.name,
+              }))
+            )
+          : null,
       items: {
         create: itemsData,
       },
@@ -271,7 +274,7 @@ export async function saveManualReceiptAction(data) {
       });
     }
 
-    console.log('People data before saving to database:', data.people);
+    console.log('Data orang sebelum menyimpan ke database:', data.people);
 
     // create a split bill for this receipt
     await prisma.splitBill.create({
@@ -293,8 +296,8 @@ export async function saveManualReceiptAction(data) {
   } catch (error) {
     console.error('Manual receipt error:', error);
     return {
-      error: error.message || 'Failed to save receipt',
-      stack: error.stack
+      error: error.message || 'Gagal menyimpan receipt',
+      stack: error.stack,
     };
   }
 }

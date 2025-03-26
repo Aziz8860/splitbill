@@ -12,7 +12,14 @@ import {
   TrashIcon,
 } from '@heroicons/react/24/outline';
 import { useRouter } from 'next/navigation';
-import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button } from '@heroui/react';
+import {
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Button,
+} from '@heroui/react';
 import { toast } from 'react-hot-toast';
 
 export default function UploadForm() {
@@ -40,7 +47,6 @@ export default function UploadForm() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const router = useRouter();
 
@@ -50,18 +56,17 @@ export default function UploadForm() {
     router.push('/dashboard');
   };
 
-
   // Add this to your component
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => {
       setIsOnline(false);
-      toast.error('Your device is offline. Please check your connection.');
+      toast.error('Perangkat Anda sedang offline. Harap periksa koneksi Anda.');
     };
-    
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-    
+
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
@@ -169,8 +174,8 @@ export default function UploadForm() {
     const newTax = parseFloat(data.tax || 0);
 
     // Check if dealing with a valid receipt or a non-receipt image
-    const isValidReceipt = newSubtotal > 0 || newTax > 0 || data.items?.length > 0;
-
+    const isValidReceipt =
+      newSubtotal > 0 || newTax > 0 || data.items?.length > 0;
 
     // Update the receipt data state with empty people array if not exists
     setReceiptData({
@@ -180,11 +185,11 @@ export default function UploadForm() {
         : receiptData.date,
       totalAmount: newTotalAmount.toString(),
       // Use conditional logic to update tax and subtotal
-      tax: isValidReceipt 
-        ? (parseFloat(receiptData.tax || 0) + newTax).toString() 
+      tax: isValidReceipt
+        ? (parseFloat(receiptData.tax || 0) + newTax).toString()
         : receiptData.tax,
-      subtotal: isValidReceipt 
-        ? (parseFloat(receiptData.subtotal || 0) + newSubtotal).toString() 
+      subtotal: isValidReceipt
+        ? (parseFloat(receiptData.subtotal || 0) + newSubtotal).toString()
         : receiptData.subtotal,
       items: newItems,
       splitMethod: receiptData.splitMethod, // Keep current split method
@@ -209,136 +214,158 @@ export default function UploadForm() {
     }, 0);
   };
 
-// In handleFileUpload function
-async function handleFileUpload(file) {
-  setIsUploading(true);
-  setProcessingStage('Preparing receipt...');
-  
-  let loadingToast = null;
-  
-  try {
-    // Compress the image before uploading if it's too large
-    const compressedFile = await compressImage(file);
-    
-    const formData = new FormData();
-    formData.append('file', compressedFile);
+  // In handleFileUpload function
+  async function handleFileUpload(file) {
+    setIsUploading(true);
+    setProcessingStage('Preparing receipt...');
 
-    loadingToast = toast.loading('Processing your receipt...');
-    
-    // Add more detailed progress updates
-    const progressUpdates = [
-      'Uploading receipt...',
-      'Analyzing receipt with AI...',
-      'Extracting data...',
-      'Finalizing...'
-    ];
-    
-    // Use clearable timeouts so we can cancel them if there's an error
-    const updateTimeouts = [];
-    
-    progressUpdates.forEach((message, index) => {
-      const timeout = setTimeout(() => setProcessingStage(message), index * 3000);
-      updateTimeouts.push(timeout);
-    });
+    let loadingToast = null;
 
-    // Add a timeout promise to handle slow connections
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Upload timed out - please try again with a stronger connection')), 30000)
-    );
-    
-    // Race between the actual upload and the timeout
-    const result = await Promise.race([
-      uploadReceiptAction(formData),
-      timeoutPromise
-    ]);
+    try {
+      // Compress the image before uploading if it's too large
+      const compressedFile = await compressImage(file);
 
-    // Clear all the progress update timeouts
-    updateTimeouts.forEach(clearTimeout);
+      const formData = new FormData();
+      formData.append('file', compressedFile);
 
-    if (result.error) {
-      console.error('Upload error:', result.error);
-      toast.error("Failed to process receipt. Please try again.");
-    } else {
-      // Update the form with the parsed data
-      if (result.parsedData) {
-        // Check if this is a valid receipt before showing success message
-        const parsedData = result.parsedData;
-        const newSubtotal = parseFloat(parsedData.subtotal || 0);
-        const newTax = parseFloat(parsedData.tax || 0);
-        const isValidReceipt = newSubtotal > 0 || newTax > 0 || parsedData.items?.length > 0;
-        
-        if (isValidReceipt) {
-          toast.success('Receipt processed successfully!');
-        } else {
-          toast.error('Please upload a clear image of a receipt. No receipt data was detected in this image.');
-        }
-        
-        updateFormWithParsedData(result.parsedData, result.imageUrl);
+      loadingToast = toast.loading('Memproses receipt...');
+
+      // Add more detailed progress updates
+      const progressUpdates = [
+        'Mengunggah receipt...',
+        'Menganalisis receipt dengan AI...',
+        'Mengambil data...',
+        'Mempersiapkan receipt Anda...',
+      ];
+
+      // Use clearable timeouts so we can cancel them if there's an error
+      const updateTimeouts = [];
+
+      progressUpdates.forEach((message, index) => {
+        const timeout = setTimeout(
+          () => setProcessingStage(message),
+          index * 3000
+        );
+        updateTimeouts.push(timeout);
+      });
+
+      // Add a timeout promise to handle slow connections
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(
+          () =>
+            reject(
+              new Error(
+                'Upload timed out - please try again with a stronger connection'
+              )
+            ),
+          30000
+        )
+      );
+
+      // Race between the actual upload and the timeout
+      const result = await Promise.race([
+        uploadReceiptAction(formData),
+        timeoutPromise,
+      ]);
+
+      // Clear all the progress update timeouts
+      updateTimeouts.forEach(clearTimeout);
+
+      if (result.error) {
+        console.error('Upload error:', result.error);
+        toast.error('Gagal memproses receipt. Harap coba lagi.');
       } else {
-        toast.error('Please upload a clear image of a receipt. No receipt data was detected.');
-      }
-    }
-  } catch (error) {
-    console.error('Upload error:', error);
-    toast.error('Failed to process receipt. Please try again.');
-  } finally {
-    // Only dismiss the loading toast if it exists
-    if (loadingToast) {
-      toast.dismiss(loadingToast);
-    }
-    
-    setIsUploading(false);
-    setProcessingStage(null);
-  }
-}
+        // Update the form with the parsed data
+        if (result.parsedData) {
+          // Check if this is a valid receipt before showing success message
+          const parsedData = result.parsedData;
+          const newSubtotal = parseFloat(parsedData.subtotal || 0);
+          const newTax = parseFloat(parsedData.tax || 0);
+          const isValidReceipt =
+            newSubtotal > 0 || newTax > 0 || parsedData.items?.length > 0;
 
-// Add this function to compress images before upload
-function compressImage(file) {
-  return new Promise((resolve) => {
-    // If file is small enough, don't compress
-    if (file.size <= 1024 * 1024) {
-      resolve(file);
-      return;
-    }
-    
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target.result;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        // Calculate new dimensions - target ~1MB file size
-        let width = img.width;
-        let height = img.height;
-        
-        // Maintain aspect ratio while reducing size
-        const maxSize = 1200;
-        if (width > height && width > maxSize) {
-          height = Math.round((height * maxSize) / width);
-          width = maxSize;
-        } else if (height > maxSize) {
-          width = Math.round((width * maxSize) / height);
-          height = maxSize;
+          if (isValidReceipt) {
+            toast.success('Receipt berhasil diproses!');
+          } else {
+            toast.error(
+              'Harap unggah gambar tanda terima yang jelas. Tidak ada data tanda terima yang terdeteksi dalam gambar ini.'
+            );
+          }
+
+          updateFormWithParsedData(result.parsedData, result.imageUrl);
+        } else {
+          toast.error(
+            'Harap unggah gambar tanda terima yang jelas. Tidak ada data tanda terima yang terdeteksi dalam gambar ini.'
+          );
         }
-        
-        canvas.width = width;
-        canvas.height = height;
-        
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-        
-        // Convert to blob with reduced quality
-        canvas.toBlob((blob) => {
-          resolve(new File([blob], file.name, {
-            type: 'image/jpeg',
-            lastModified: new Date().getTime()
-          }));
-        }, 'image/jpeg', 0.7); // Adjust quality as needed
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Gagal memproses receipt. Harap coba lagi.');
+    } finally {
+      // Only dismiss the loading toast if it exists
+      if (loadingToast) {
+        toast.dismiss(loadingToast);
+      }
+
+      setIsUploading(false);
+      setProcessingStage(null);
+    }
+  }
+
+  // Add this function to compress images before upload
+  function compressImage(file) {
+    return new Promise((resolve) => {
+      // If file is small enough, don't compress
+      if (file.size <= 1024 * 1024) {
+        resolve(file);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          // Calculate new dimensions - target ~1MB file size
+          let width = img.width;
+          let height = img.height;
+
+          // Maintain aspect ratio while reducing size
+          const maxSize = 1200;
+          if (width > height && width > maxSize) {
+            height = Math.round((height * maxSize) / width);
+            width = maxSize;
+          } else if (height > maxSize) {
+            width = Math.round((width * maxSize) / height);
+            height = maxSize;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Convert to blob with reduced quality
+          canvas.toBlob(
+            (blob) => {
+              resolve(
+                new File([blob], file.name, {
+                  type: 'image/jpeg',
+                  lastModified: new Date().getTime(),
+                })
+              );
+            },
+            'image/jpeg',
+            0.7
+          ); // Adjust quality as needed
+        };
       };
-    };
-  });
-}
+    });
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -386,9 +413,9 @@ function compressImage(file) {
 
       if (result.error) {
         console.error('Result Form submission error:', error);
-        toast.error('Failed to save receipt, please try again');
+        toast.error('Gagal menyimpan receipt, harap coba lagi');
       } else {
-        toast.success('Receipt saved successfully!');
+        toast.success('Receipt berhasil disimpan!');
         if (result.redirectUrl) {
           router.push(result.redirectUrl);
         } else {
@@ -397,7 +424,7 @@ function compressImage(file) {
       }
     } catch (error) {
       console.error('Form submission error:', error);
-      toast.error('Failed to save receipt, please try again');
+      toast.error('Gagal menyimpan receipt, harap coba lagi');
     } finally {
       setIsUploading(false);
     }
@@ -428,8 +455,8 @@ function compressImage(file) {
         videoRef.current.srcObject = stream;
       }
     } catch (error) {
-      console.error('Error accessing camera:', error);
-      toast.error('Could not access camera');
+      console.error('Error mengakses kamera:', error);
+      toast.error('Tidak dapat mengakses kamera');
       setUsingCamera(false);
     }
   };
@@ -447,17 +474,17 @@ function compressImage(file) {
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      
+
       // Ensure the canvas size matches the video
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      
+
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      
+
       // Show a loading indicator immediately
       setProcessingStage('Processing camera capture...');
-      
+
       // Use a lower quality for the camera capture
       canvas.toBlob(
         async (blob) => {
@@ -465,18 +492,18 @@ function compressImage(file) {
             const file = new File([blob], 'receipt.jpg', {
               type: 'image/jpeg',
             });
-            
+
             // Add the preview URL
             const url = URL.createObjectURL(file);
             setPreviewUrls((prev) => [...prev, url]);
-            
+
             // Allow UI to update before processing
             setTimeout(() => {
               stopCamera();
               handleFileUpload(file);
             }, 500);
           } else {
-            toast.error('Failed to capture image. Please try again.');
+            toast.error('Gagal mengambil gambar. Harap coba lagi.');
             setIsUploading(false);
             setProcessingStage(null);
           }
@@ -485,7 +512,7 @@ function compressImage(file) {
         0.7 // Lower quality for faster upload
       );
     } else {
-      toast.error('Camera not available');
+      toast.error('Kamera tidak tersedia');
     }
   };
 
@@ -635,186 +662,155 @@ function compressImage(file) {
 
   return (
     <>
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        name="file"
-        accept="image/*"
-        onChange={handleFileChange}
-        className="hidden"
-      />
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          name="file"
+          accept="image/*"
+          onChange={handleFileChange}
+          className="hidden"
+        />
 
-      {/* Camera View */}
-      {usingCamera && (
-        <div className="relative bg-black rounded-lg overflow-hidden aspect-[3/4]">
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            className="w-full h-full object-cover"
-          />
-          <canvas ref={canvasRef} className="hidden" />
+        {/* Camera View */}
+        {usingCamera && (
+          <div className="relative bg-black rounded-lg overflow-hidden aspect-[3/4]">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              className="w-full h-full object-cover"
+            />
+            <canvas ref={canvasRef} className="hidden" />
 
-          <div className="absolute bottom-4 w-full flex justify-center space-x-4">
-            <button
-              type="button"
-              onClick={captureImage}
-              className="p-4 bg-white rounded-full"
-              disabled={isUploading}
-            >
-              <div className="w-12 h-12 rounded-full border-4 border-gray-600"></div>
-            </button>
+            <div className="absolute bottom-4 w-full flex justify-center space-x-4">
+              <button
+                type="button"
+                onClick={captureImage}
+                className="p-4 bg-white rounded-full"
+                disabled={isUploading}
+              >
+                <div className="w-12 h-12 rounded-full border-4 border-gray-600"></div>
+              </button>
 
-            <button
-              type="button"
-              onClick={stopCamera}
-              className="p-3 bg-red-500 text-white rounded-full"
-            >
-              &times;
-            </button>
+              <button
+                type="button"
+                onClick={stopCamera}
+                className="p-3 bg-red-500 text-white rounded-full"
+              >
+                &times;
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Preview Images - Grid for multiple images */}
-      {previewUrls.length > 0 && !usingCamera && (
-        <div className="mt-2">
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {previewUrls.map((url, index) => (
-              <div key={index} className="relative">
-                <img
-                  src={url}
-                  alt={`Receipt preview ${index + 1}`}
-                  className="w-full h-32 object-cover rounded-lg"
-                />
-                <button
-                  type="button"
-                  onClick={() => removePreviewImage(index)}
-                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center"
-                  disabled={isUploading}
-                >
-                  &times;
-                </button>
-              </div>
-            ))}
+        {/* Preview Images - Grid for multiple images */}
+        {previewUrls.length > 0 && !usingCamera && (
+          <div className="mt-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {previewUrls.map((url, index) => (
+                <div key={index} className="relative">
+                  <img
+                    src={url}
+                    alt={`Receipt preview ${index + 1}`}
+                    className="w-full h-32 object-cover rounded-lg"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removePreviewImage(index)}
+                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center"
+                    disabled={isUploading}
+                  >
+                    &times;
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Processing Status */}
-      {isUploading && processingStage && (
-        <div
-          className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded relative"
-          role="alert"
-        >
-          <div className="flex items-center">
-            <svg
-              className="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-600"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              ></circle>
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-            <span className="font-medium">{processingStage}</span>
-          </div>
-          <p className="text-sm mt-2">
-            This may take up to 15-20 seconds. Please don't close this window.
-          </p>
-        </div>
-      )}
-
-      {/* Upload/Scan Buttons - Always show unless camera is active */}
-      {!usingCamera && !isUploading && (
-        <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className={`flex-1 py-2 px-4 ${
-              isMobile
-                ? 'bg-white border border-gray-300'
-                : 'bg-primary border border-transparent text-white hover:bg-primary-600'
-            } rounded-md shadow-sm text-sm font-medium ${
-              isMobile ? 'text-gray-700 hover:bg-gray-50' : 'text-white'
-            } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-300`}
-            disabled={isUploading}
+        {/* Processing Status */}
+        {isUploading && processingStage && (
+          <div
+            className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded relative"
+            role="alert"
           >
-            <PhotoIcon className="h-5 w-5 inline mr-2" />
-            {isMobile ? 'Choose File' : 'Upload Receipt'}
-          </button>
+            <div className="flex items-center">
+              <svg
+                className="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-600"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                ></circle>
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+              <span className="font-medium">{processingStage}</span>
+            </div>
+            <p className="text-sm mt-2">
+              Proses ini mungkin memakan waktu 15-20 detik. Jangan tutup jendela
+              ini.
+            </p>
+          </div>
+        )}
 
-          {isMobile && (
+        {/* Upload/Scan Buttons - Always show unless camera is active */}
+        {!usingCamera && !isUploading && (
+          <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
             <button
               type="button"
-              onClick={startCamera}
-              className="flex-1 py-2 px-4 bg-primary border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-300"
+              onClick={() => fileInputRef.current?.click()}
+              className={`flex-1 py-2 px-4 ${
+                isMobile
+                  ? 'bg-white border border-gray-300'
+                  : 'bg-primary border border-transparent text-white hover:bg-primary-600'
+              } rounded-md shadow-sm text-sm font-medium ${
+                isMobile ? 'text-gray-700 hover:bg-gray-50' : 'text-white'
+              } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-300`}
               disabled={isUploading}
             >
-              <CameraIcon className="h-5 w-5 inline mr-2" />
-              Scan Receipt
+              <PhotoIcon className="h-5 w-5 inline mr-2" />
+              {isMobile ? 'Choose File' : 'Upload Receipt'}
             </button>
-          )}
-        </div>
-      )}
 
-      {/* Receipt Data Form - Always display */}
-      <div className="space-y-6">
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Restaurant Name
-            </label>
-            <input
-              type="text"
-              value={receiptData.restaurant}
-              onChange={(e) =>
-                setReceiptData({ ...receiptData, restaurant: e.target.value })
-              }
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-              required
-            />
+            {isMobile && (
+              <button
+                type="button"
+                onClick={startCamera}
+                className="flex-1 py-2 px-4 bg-primary border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-300"
+                disabled={isUploading}
+              >
+                <CameraIcon className="h-5 w-5 inline mr-2" />
+                Scan Receipt
+              </button>
+            )}
           </div>
+        )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Date
-            </label>
-            <input
-              type="date"
-              value={receiptData.date}
-              onChange={(e) =>
-                setReceiptData({ ...receiptData, date: e.target.value })
-              }
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
+        {/* Receipt Data Form - Always display */}
+        <div className="space-y-6">
+          <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                Subtotal
+                Nama Tempat/Restaurant
               </label>
               <input
-                type="number"
-                step="0.01"
-                value={receiptData.subtotal}
+                type="text"
+                value={receiptData.restaurant}
                 onChange={(e) =>
-                  setReceiptData({ ...receiptData, subtotal: e.target.value })
+                  setReceiptData({ ...receiptData, restaurant: e.target.value })
                 }
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                 required
@@ -823,373 +819,424 @@ function compressImage(file) {
 
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                Tax
+                Tanggal
               </label>
               <input
-                type="number"
-                step="0.01"
-                value={receiptData.tax}
+                type="date"
+                value={receiptData.date}
                 onChange={(e) =>
-                  setReceiptData({ ...receiptData, tax: e.target.value })
+                  setReceiptData({ ...receiptData, date: e.target.value })
                 }
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                 required
               />
             </div>
 
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Subtotal
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={receiptData.subtotal}
+                  onChange={(e) =>
+                    setReceiptData({ ...receiptData, subtotal: e.target.value })
+                  }
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Pajak
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={receiptData.tax}
+                  onChange={(e) =>
+                    setReceiptData({ ...receiptData, tax: e.target.value })
+                  }
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Total Tagihan
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={receiptData.totalAmount}
+                  onChange={(e) =>
+                    setReceiptData({
+                      ...receiptData,
+                      totalAmount: e.target.value,
+                    })
+                  }
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                  required
+                />
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                Total Amount
+                Mata Uang
               </label>
-              <input
-                type="number"
-                step="0.01"
-                value={receiptData.totalAmount}
+              <select
+                value={receiptData.currency}
+                onChange={(e) =>
+                  setReceiptData({ ...receiptData, currency: e.target.value })
+                }
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                required
+              >
+                <option value="USD">USD ($)</option>
+                <option value="EUR">EUR (€)</option>
+                <option value="GBP">GBP (£)</option>
+                <option value="JPY">JPY (¥)</option>
+                <option value="IDR">IDR (Rp)</option>
+                <option value="SGD">SGD (S$)</option>
+                <option value="AUD">AUD (A$)</option>
+                <option value="CAD">CAD (C$)</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Metode Pembayaran
+              </label>
+              <select
+                value={receiptData.paymentMethod}
                 onChange={(e) =>
                   setReceiptData({
                     ...receiptData,
-                    totalAmount: e.target.value,
+                    paymentMethod: e.target.value,
                   })
                 }
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
                 required
+              >
+                <option value="Cash">Cash</option>
+                <option value="BCA">BCA</option>
+                <option value="BRI">BRI</option>
+                <option value="BNI">BNI</option>
+                <option value="Mandiri">Mandiri</option>
+                <option value="BSI">BSI</option>
+                <option value="Gopay">Gopay</option>
+                <option value="Ovo">Ovo</option>
+                <option value="ShopeePay">ShopeePay</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Nomor Rekening
+              </label>
+              <input
+                type="text"
+                value={receiptData.accountNumber}
+                onChange={(e) =>
+                  setReceiptData({
+                    ...receiptData,
+                    accountNumber: e.target.value,
+                  })
+                }
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
               />
             </div>
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Currency
-            </label>
-            <select
-              value={receiptData.currency}
-              onChange={(e) =>
-                setReceiptData({ ...receiptData, currency: e.target.value })
-              }
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-              required
-            >
-              <option value="USD">USD ($)</option>
-              <option value="EUR">EUR (€)</option>
-              <option value="GBP">GBP (£)</option>
-              <option value="JPY">JPY (¥)</option>
-              <option value="IDR">IDR (Rp)</option>
-              <option value="SGD">SGD (S$)</option>
-              <option value="AUD">AUD (A$)</option>
-              <option value="CAD">CAD (C$)</option>
-            </select>
-          </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Nama Penerima
+              </label>
+              <input
+                type="text"
+                value={receiptData.accountName}
+                onChange={(e) =>
+                  setReceiptData({
+                    ...receiptData,
+                    accountName: e.target.value,
+                  })
+                }
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+              />
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Payment Method
-            </label>
-            <select
-              value={receiptData.paymentMethod}
-              onChange={(e) =>
-                setReceiptData({
-                  ...receiptData,
-                  paymentMethod: e.target.value,
-                })
-              }
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-              required
-            >
-              <option value="Cash">Cash</option>
-              <option value="BCA">BCA</option>
-              <option value="BRI">BRI</option>
-              <option value="BNI">BNI</option>
-              <option value="Mandiri">Mandiri</option>
-              <option value="BSI">BSI</option>
-              <option value="Gopay">Gopay</option>
-              <option value="Ovo">Ovo</option>
-              <option value="ShopeePay">ShopeePay</option>
-            </select>
-          </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Metode Split
+              </label>
+              <select
+                value={receiptData.splitMethod}
+                onChange={(e) =>
+                  setReceiptData({
+                    ...receiptData,
+                    splitMethod: e.target.value,
+                  })
+                }
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+              >
+                <option value="evenly">Split Sama Rata</option>
+                <option value="custom">Custom Split</option>
+              </select>
+              {/* Show people section for both split methods */}
+              <div className="space-y-2 mt-4">
+                <div className="flex justify-between items-center">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Partisipan
+                  </label>
+                  <button
+                    type="button"
+                    onClick={addPerson}
+                    className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  >
+                    <PlusIcon className="h-5 w-5" aria-hidden="true" />
+                  </button>
+                </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Account Number
-            </label>
-            <input
-              type="text"
-              value={receiptData.accountNumber}
-              onChange={(e) =>
-                setReceiptData({
-                  ...receiptData,
-                  accountNumber: e.target.value,
-                })
-              }
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-            />
-          </div>
+                {receiptData.people.map((person, index) => (
+                  <div key={index} className="flex gap-2 items-center">
+                    <div className="flex-1">
+                      <input
+                        type="text"
+                        value={person.name}
+                        onChange={(e) => updatePerson(index, e.target.value)}
+                        placeholder="Person name"
+                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                        required={receiptData.people.length > 0}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removePerson(index)}
+                      className="px-2 text-red-600 hover:text-red-800"
+                      disabled={receiptData.people.length <= 1}
+                    >
+                      <TrashIcon className="h-5 w-5" />
+                    </button>
+                  </div>
+                ))}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Account Name
-            </label>
-            <input
-              type="text"
-              value={receiptData.accountName}
-              onChange={(e) =>
-                setReceiptData({ ...receiptData, accountName: e.target.value })
-              }
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-            />
-          </div>
+                {receiptData.people.length === 0 && (
+                  <p className="text-sm text-gray-500 italic">
+                    Tambah orang untuk membagi tagihan
+                  </p>
+                )}
+              </div>
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Split Method
-            </label>
-            <select
-              value={receiptData.splitMethod}
-              onChange={(e) =>
-                setReceiptData({
-                  ...receiptData,
-                  splitMethod: e.target.value,
-                })
-              }
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-            >
-              <option value="evenly">Split Evenly</option>
-              <option value="custom">Custom Split</option>
-            </select>
-            {/* Show people section for both split methods */}
-            <div className="space-y-2 mt-4">
+            {/* Update the items section */}
+            <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <label className="block text-sm font-medium text-gray-700">
-                  People
+                  Barang/Item
                 </label>
                 <button
                   type="button"
-                  onClick={addPerson}
+                  onClick={addItem}
                   className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                 >
                   <PlusIcon className="h-5 w-5" aria-hidden="true" />
                 </button>
               </div>
 
-              {receiptData.people.map((person, index) => (
-                <div key={index} className="flex gap-2 items-center">
-                  <div className="flex-1">
-                    <input
-                      type="text"
-                      value={person.name}
-                      onChange={(e) => updatePerson(index, e.target.value)}
-                      placeholder="Person name"
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                      required={receiptData.people.length > 0}
-                    />
+              {receiptData.items.map((item, itemIndex) => (
+                <div key={itemIndex}>
+                  <div className="flex gap-2 items-end">
+                    <div className="flex-1">
+                      <label className="block text-xs text-gray-500">
+                        Nama Barang/Item
+                      </label>
+                      <input
+                        type="text"
+                        value={item.name}
+                        onChange={(e) =>
+                          updateItem(itemIndex, 'name', e.target.value)
+                        }
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                        required
+                      />
+                    </div>
+
+                    <div className="w-20">
+                      <label className="block text-xs text-gray-500">
+                        Harga
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={item.price}
+                        onChange={(e) =>
+                          updateItem(itemIndex, 'price', e.target.value)
+                        }
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                        required
+                      />
+                    </div>
+
+                    <div className="w-20">
+                      <label className="block text-xs text-gray-500">
+                        Jumlah
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={item.quantity}
+                        onChange={(e) =>
+                          updateItem(itemIndex, 'quantity', e.target.value)
+                        }
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+                        required
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => removeItem(itemIndex)}
+                      className="h-10 px-2 text-red-600 hover:text-red-800"
+                      disabled={receiptData.items.length <= 1}
+                    >
+                      <TrashIcon className="h-5 w-5" />
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removePerson(index)}
-                    className="px-2 text-red-600 hover:text-red-800"
-                    disabled={receiptData.people.length <= 1}
-                  >
-                    <TrashIcon className="h-5 w-5" />
-                  </button>
+
+                  {/* Show assigned people based on split method */}
+                  {item.name && (
+                    <div className="ml-2 mt-1">
+                      {receiptData.splitMethod === 'custom' ? (
+                        <div className="flex flex-wrap gap-2">
+                          {receiptData.people.map(
+                            (person, personIndex) =>
+                              person.name && (
+                                <label
+                                  key={personIndex}
+                                  className="inline-flex items-center"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={
+                                      item.assignedTo &&
+                                      Array.isArray(item.assignedTo) &&
+                                      item.assignedTo.includes(personIndex)
+                                    }
+                                    onChange={() =>
+                                      toggleItemAssignment(
+                                        itemIndex,
+                                        personIndex
+                                      )
+                                    }
+                                    className="rounded border-gray-300 text-primary-600 shadow-sm focus:border-primary-300 focus:ring focus:ring-primary-200 focus:ring-opacity-50"
+                                  />
+                                  <span className="ml-1 text-sm text-gray-700">
+                                    {person.name}
+                                  </span>
+                                </label>
+                              )
+                          )}
+                        </div>
+                      ) : receiptData.people.length > 0 ? (
+                        <div className="text-sm text-gray-500">
+                          <span className="font-medium">
+                            Split sama rata ke:{' '}
+                          </span>
+                          {receiptData.people
+                            .filter((person) => person.name)
+                            .map((person) => person.name)
+                            .join(', ')}
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
                 </div>
               ))}
-              
-              {receiptData.people.length === 0 && (
-                <p className="text-sm text-gray-500 italic">Add people to split the bill with</p>
-              )}
-            </div>
-          </div>
-
-          {/* Update the items section */}
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <label className="block text-sm font-medium text-gray-700">
-                Items
-              </label>
-              <button
-                type="button"
-                onClick={addItem}
-                className="inline-flex items-center p-1 border border-transparent rounded-full shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                <PlusIcon className="h-5 w-5" aria-hidden="true" />
-              </button>
             </div>
 
-            {receiptData.items.map((item, itemIndex) => (
-              <div key={itemIndex}>
-                <div className="flex gap-2 items-end">
-                  <div className="flex-1">
-                    <label className="block text-xs text-gray-500">
-                      Item Name
-                    </label>
-                    <input
-                      type="text"
-                      value={item.name}
-                      onChange={(e) =>
-                        updateItem(itemIndex, 'name', e.target.value)
-                      }
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                      required
-                    />
-                  </div>
-
-                  <div className="w-20">
-                    <label className="block text-xs text-gray-500">Price</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={item.price}
-                      onChange={(e) =>
-                        updateItem(itemIndex, 'price', e.target.value)
-                      }
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                      required
-                    />
-                  </div>
-
-                  <div className="w-20">
-                    <label className="block text-xs text-gray-500">
-                      Quantity
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={item.quantity}
-                      onChange={(e) =>
-                        updateItem(itemIndex, 'quantity', e.target.value)
-                      }
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
-                      required
-                    />
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => removeItem(itemIndex)}
-                    className="h-10 px-2 text-red-600 hover:text-red-800"
-                    disabled={receiptData.items.length <= 1}
-                  >
-                    <TrashIcon className="h-5 w-5" />
-                  </button>
-                </div>
-
-                {/* Show assigned people based on split method */}
-                {item.name && (
-                  <div className="ml-2 mt-1">
-                    {receiptData.splitMethod === 'custom' ? (
-                      <div className="flex flex-wrap gap-2">
-                        {receiptData.people.map(
-                          (person, personIndex) =>
-                            person.name && (
-                              <label
-                                key={personIndex}
-                                className="inline-flex items-center"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={
-                                    item.assignedTo &&
-                                    Array.isArray(item.assignedTo) &&
-                                    item.assignedTo.includes(personIndex)
-                                  }
-                                  onChange={() =>
-                                    toggleItemAssignment(itemIndex, personIndex)
-                                  }
-                                  className="rounded border-gray-300 text-primary-600 shadow-sm focus:border-primary-300 focus:ring focus:ring-primary-200 focus:ring-opacity-50"
-                                />
-                                <span className="ml-1 text-sm text-gray-700">
-                                  {person.name}
-                                </span>
-                              </label>
-                            )
-                        )}
-                      </div>
-                    ) : receiptData.people.length > 0 ? (
-                      <div className="text-sm text-gray-500">
-                        <span className="font-medium">Split evenly among: </span>
-                        {receiptData.people
-                          .filter(person => person.name)
-                          .map(person => person.name)
-                          .join(', ')}
-                      </div>
-                    ) : null}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* Calculated total (for reference) */}
-          <div className="text-sm text-gray-600">
-            <div className="flex justify-between items-center mb-2">
-              <span>Subtotal:</span>
-              <span>
-                {getCurrencySymbol(receiptData.currency)}
-                {formatNumberWithDots(receiptData.subtotal)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center mb-2">
-              <span>Tax:</span>
-              <span>
-                {getCurrencySymbol(receiptData.currency)}
-                {formatNumberWithDots(receiptData.tax)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center font-bold">
-              <span>Total:</span>
-              <span>
-                {getCurrencySymbol(receiptData.currency)}
-                {formatNumberWithDots(receiptData.totalAmount)}
-              </span>
-            </div>
-            {parseFloat(calculateTotal()) !==
-              parseFloat(receiptData.totalAmount) &&
-              receiptData.totalAmount && (
-                <span className="text-yellow-600 ml-2">
-                  (Warning: Different from receipt total)
+            {/* Calculated total (for reference) */}
+            <div className="text-sm text-gray-600">
+              <div className="flex justify-between items-center mb-2">
+                <span>Subtotal:</span>
+                <span>
+                  {getCurrencySymbol(receiptData.currency)}
+                  {formatNumberWithDots(receiptData.subtotal)}
                 </span>
-              )}
+              </div>
+              <div className="flex justify-between items-center mb-2">
+                <span>Tax:</span>
+                <span>
+                  {getCurrencySymbol(receiptData.currency)}
+                  {formatNumberWithDots(receiptData.tax)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center font-bold">
+                <span>Total:</span>
+                <span>
+                  {getCurrencySymbol(receiptData.currency)}
+                  {formatNumberWithDots(receiptData.totalAmount)}
+                </span>
+              </div>
+              {parseFloat(calculateTotal()) !==
+                parseFloat(receiptData.totalAmount) &&
+                receiptData.totalAmount && (
+                  <span className="text-yellow-600 ml-2">
+                    (Peringatan: Total berbeda dari total receipt)
+                  </span>
+                )}
+            </div>
+          </div>
+
+          {/* Navigation buttons */}
+          <div className="flex justify-between items-center mt-6 mb-4">
+            <Button
+              onClick={() => setIsModalOpen(true)}
+              variant="outlined"
+              className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-300"
+            >
+              Kembali ke Beranda
+            </Button>
+
+            <Button
+              type="submit"
+              disabled={isUploading || !receiptData.restaurant}
+              className="px-4 py-2 bg-primary border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 transition-colors duration-300"
+            >
+              {isUploading ? 'Saving...' : 'Save Receipt'}
+            </Button>
           </div>
         </div>
-
-        {/* Navigation buttons */}
-        <div className="flex justify-between items-center mt-6 mb-4">
-          <Button
-            onClick={() => setIsModalOpen(true)}
-            variant="outlined"
-            className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-colors duration-300"
-          >
-            Back to Dashboard
-          </Button>
-
-          <Button
-            type="submit"
-            disabled={isUploading || !receiptData.restaurant}
-            className="px-4 py-2 bg-primary border border-transparent rounded-md shadow-sm text-sm font-medium text-white hover:bg-primary-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 transition-colors duration-300"
-          >
-            {isUploading ? 'Saving...' : 'Save Receipt'}
-          </Button>
-        </div>
-      </div>
-    </form>
-    {/* Confirmation Modal */}
-    <Modal isOpen={isModalOpen} onClose={handleModalClose} isDismissable={false}>
-    <ModalContent>
-      <ModalHeader>
-        Confirm Navigation
-      </ModalHeader>
-      <ModalBody>
-        Are you sure you want to go back to the dashboard? All unsaved changes will be lost.
-      </ModalBody>
-      <ModalFooter>
-        <Button variant="ghost" onClick={handleModalClose}>
-          Cancel
-        </Button>
-        <Button variant="solid" color="danger" onClick={handleBackToDashboard}>
-          Confirm
-        </Button>
-      </ModalFooter>
-    </ModalContent>
-  </Modal>
-  </>
+      </form>
+      {/* Confirmation Modal */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={handleModalClose}
+        isDismissable={false}
+      >
+        <ModalContent>
+          <ModalHeader>Confirm Navigation</ModalHeader>
+          <ModalBody>
+            Apakah Anda yakin ingin kembali ke beranda? Semua perubahan yang
+            belum disimpan akan hilang.
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="ghost" onClick={handleModalClose}>
+              Cancel
+            </Button>
+            <Button
+              variant="solid"
+              color="danger"
+              onClick={handleBackToDashboard}
+            >
+              Confirm
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+    </>
   );
 }
