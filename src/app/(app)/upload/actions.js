@@ -7,6 +7,7 @@ import { prisma } from '@/utils/prisma';
 import { auth } from '@/libs/auth';
 import { revalidatePath } from 'next/cache';
 
+
 export async function uploadReceiptAction(formData) {
   try {
     // Check user authentication
@@ -28,15 +29,18 @@ export async function uploadReceiptAction(formData) {
     let publicUrl;
 
     if (isGuest) {
-      // For guest users, use a temporary folder
+      // For guest users, use a temporary folder with randomness for security
+      const randomString = Math.random().toString(36).substring(2, 10);
+      const guestFolder = `guest-${timestamp}-${randomString}`;
+      
       await uploadFile({
         key: fileName,
-        folder: `guest-${timestamp}`,
+        folder: guestFolder,
         body: file,
       });
 
       // Get the public URL of the uploaded file for guests
-      publicUrl = `${process.env.R2_DEV_URL}/guest-${timestamp}/${fileName}`;
+      publicUrl = `${process.env.R2_DEV_URL}/${guestFolder}/${fileName}`;
     } else {
       // For logged in users, use their ID as the folder
       await uploadFile({
@@ -112,6 +116,7 @@ export async function uploadReceiptAction(formData) {
   }
 }
 
+
 // Action to handle submit
 // In saveManualReceiptAction, update the formatting of data:
 export async function saveManualReceiptAction(data) {
@@ -172,10 +177,49 @@ export async function saveManualReceiptAction(data) {
       }
     }
 
-    // Prepare receipt data with conditional userId
-    const receiptData = {
-      // Only include userId if user is logged in
-      ...(session?.user?.id && { userId: session.user.id }),
+    // Process receipt items
+    const itemsData = (data.items || []).map((item) => {
+      // Process assignedTo for custom split or evenly split
+      let assignedTo = null;
+
+      if (
+        data.splitMethod === 'custom' &&
+        item.assignedTo &&
+        Array.isArray(item.assignedTo)
+      ) {
+        // Convert index-based assignments to ID-based assignments
+        assignedTo = item.assignedTo
+          .map((idx) => peopleMap[idx])
+          .filter((id) => id);
+
+        // Store as JSON
+        if (assignedTo.length > 0) {
+          assignedTo = JSON.stringify(assignedTo);
+        } else {
+          assignedTo = null;
+        }
+      } else if (
+        data.splitMethod === 'evenly' &&
+        data.people &&
+        data.people.length > 0
+      ) {
+        // For evenly split, assign all people to each item
+        const allPeopleIds = Object.values(peopleMap).filter((id) => id);
+        if (allPeopleIds.length > 0) {
+          assignedTo = JSON.stringify(allPeopleIds);
+        }
+      }
+
+      return {
+        name: item.name || 'Unknown Item',
+        price: parseFloat(item.price) || 0,
+        quantity: parseInt(item.quantity) || 1,
+        assignedTo,
+      };
+    });
+
+    // Prepare receipt data
+    const baseReceiptData = {
       image: data.imageUrl || null,
       totalAmount: parseFloat(data.totalAmount) || 0,
       date: new Date(data.date) || new Date(),
@@ -198,55 +242,37 @@ export async function saveManualReceiptAction(data) {
             )
           : null,
       items: {
-        create: (data.items || []).map((item) => {
-          // Process assignedTo for custom split or evenly split
-          let assignedTo = null;
-
-          if (
-            data.splitMethod === 'custom' &&
-            item.assignedTo &&
-            Array.isArray(item.assignedTo)
-          ) {
-            // Convert index-based assignments to ID-based assignments
-            assignedTo = item.assignedTo
-              .map((idx) => peopleMap[idx])
-              .filter((id) => id);
-
-            // Store as JSON
-            if (assignedTo.length > 0) {
-              assignedTo = JSON.stringify(assignedTo);
-            } else {
-              assignedTo = null;
-            }
-          } else if (
-            data.splitMethod === 'evenly' &&
-            data.people &&
-            data.people.length > 0
-          ) {
-            // For evenly split, assign all people to each item
-            const allPeopleIds = Object.values(peopleMap).filter((id) => id);
-            if (allPeopleIds.length > 0) {
-              assignedTo = JSON.stringify(allPeopleIds);
-            }
-          }
-
-          return {
-            name: item.name || 'Unknown Item',
-            price: parseFloat(item.price) || 0,
-            quantity: parseInt(item.quantity) || 1,
-            assignedTo,
-          };
-        }),
+        create: itemsData,
       },
     };
 
-    // Create receipt and items in the database
-    const receipt = await prisma.receipt.create({
-      data: receiptData,
-      include: {
-        items: true,
-      },
-    });
+    // Create receipt with proper user relation handling
+    let receipt;
+    
+    if (session?.user?.id) {
+      // For logged-in users, connect the receipt to their user record
+      receipt = await prisma.receipt.create({
+        data: {
+          ...baseReceiptData,
+          user: {
+            connect: {
+              id: session.user.id
+            }
+          }
+        },
+        include: {
+          items: true,
+        },
+      });
+    } else {
+      // For guest users, create receipt without a user connection
+      receipt = await prisma.receipt.create({
+        data: baseReceiptData,
+        include: {
+          items: true,
+        },
+      });
+    }
 
     console.log('Data orang sebelum menyimpan ke database:', data.people);
 
